@@ -358,39 +358,74 @@ docker compose down
 
 #### Production Setup
 
-For production deployment with optimized Docker images:
+Choose your deployment option based on your infrastructure:
 
-**1. Ensure `.env` file is configured (same as above)**
+##### **Option 1: Self-Hosted (Includes MongoDB)**
+
+Use this if you want to run everything in Docker containers on your own server.
+
+**1. Configure `.env` file (same as development)**
 
 **2. Build and start:**
 ```bash
-docker compose -f docker-compose.production.yml up -d --build
+docker compose -f docker-compose.selfhosted.yml up -d --build
 ```
 
 **Features:**
+- ✅ All-in-one - MongoDB included in the stack
 - ✅ Multi-stage build - optimized image size
 - ✅ Production-ready - runs as non-root user
-- ✅ Standalone output - self-contained
 - ✅ Auto-restart - services restart on failure
 
 **3. View logs:**
 ```bash
 # All services
-docker compose -f docker-compose.production.yml logs -f
+docker compose -f docker-compose.selfhosted.yml logs -f
 
 # Specific service
-docker compose -f docker-compose.production.yml logs -f app
-docker compose -f docker-compose.production.yml logs -f monitor
+docker compose -f docker-compose.selfhosted.yml logs -f app
 ```
 
 **4. Stop services:**
 ```bash
-docker compose -f docker-compose.production.yml down
+docker compose -f docker-compose.selfhosted.yml down
 ```
 
-**5. Stop and remove all data:**
+---
+
+##### **Option 2: Managed Database (External MongoDB)**
+
+Use this if you're using MongoDB Atlas, AWS DocumentDB, or other managed MongoDB services. **Ideal for small instances like AWS t3a.nano**.
+
+**1. Configure `.env` file with external MongoDB:**
 ```bash
-docker compose -f docker-compose.production.yml down -v
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/uptime-monitor
+# ... other environment variables
+```
+
+**2. Pull and start:**
+```bash
+# Pull pre-built image from GitHub Container Registry
+docker pull ghcr.io/screenappai/uptime-monitor:latest
+
+# Start services
+docker compose -f docker-compose.managed.yml up -d
+```
+
+**Features:**
+- ✅ Lightweight - no MongoDB container (saves ~200-400 MB RAM)
+- ✅ Pre-built image - no build step required
+- ✅ Perfect for small instances (t3a.nano, t3a.micro)
+- ✅ Uses managed database services
+
+**3. View logs:**
+```bash
+docker compose -f docker-compose.managed.yml logs -f
+```
+
+**4. Stop services:**
+```bash
+docker compose -f docker-compose.managed.yml down
 ```
 
 ### VPS / Self-hosted

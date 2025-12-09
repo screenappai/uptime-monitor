@@ -8,7 +8,14 @@
     "build": "next build",
     "start": "next start -p 3200",
     "lint": "next lint",
-    "monitor": "node scripts/monitor.js"
+    "monitor": "node scripts/monitor.js",
+    "deploy:lambda": "serverless deploy --stage production --force",
+    "deploy:lambda:dev": "serverless deploy --stage dev",
+    "deploy:lambda:function": "serverless deploy function -f --force",
+    "invoke:cron": "serverless invoke -f monitorCron --stage production",
+    "logs:cron": "serverless logs -f monitorCron --tail --stage production",
+    "remove:lambda": "serverless remove --stage production",
+    "offline": "serverless offline"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -31,6 +38,7 @@
     "zod": "^3.22.0"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.145",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/node-cron": "^3.0.11",
@@ -38,9 +46,14 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "autoprefixer": "^10.0.1",
+    "dotenv-cli": "^11.0.0",
+    "esbuild": "^0.27.1",
     "eslint": "^8",
     "eslint-config-next": "^15.0.0",
     "postcss": "^8",
+    "serverless": "^3.38.0",
+    "serverless-esbuild": "^1.56.1",
+    "serverless-offline": "^13.3.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5"
   },

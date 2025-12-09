@@ -1,0 +1,69 @@
+service: uptime-monitor-cron
+
+# Serverless Framework v3 will automatically load .env file
+# We'll use a helper script to copy the correct env file before deploy
+useDotenv: true
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: us-east-1
+  stage: ${opt:stage, 'production'}
+  timeout: 300 # 5 minutes timeout (reasonable for monitor checks)
+  memorySize: 512
+  environment:
+    # Required
+    MONGODB_URI: ${env:MONGODB_URI}
+    EMAIL_HOST: ${env:EMAIL_HOST}
+    EMAIL_PORT: ${env:EMAIL_PORT}
+    EMAIL_USER: ${env:EMAIL_USER}
+    EMAIL_PASSWORD: ${env:EMAIL_PASSWORD}
+    EMAIL_FROM: ${env:EMAIL_FROM}
+    # Optional - Twilio phone alerts (can be empty if not using)
+    TWILIO_ACCOUNT_SID: ${env:TWILIO_ACCOUNT_SID, ''}
+    TWILIO_AUTH_TOKEN: ${env:TWILIO_AUTH_TOKEN, ''}
+    TWILIO_PHONE_NUMBER: ${env:TWILIO_PHONE_NUMBER, ''}
+    # Optional - API endpoint security (recommended for production)
+    CRON_SECRET: ${env:CRON_SECRET, ''}
+
+package:
+  individually: true
+
+functions:
+  monitorCron:
+    handler: aws/handler.monitorCron
+    description: Run uptime monitor checks
+    events:
+      # Run every 1 minute
+      - schedule: rate(1 minute)
+      # Also expose as HTTP endpoint for manual triggers
+      - httpApi:
+          path: /cron/monitor
+          method: get
+
+  # Optional: Manual trigger via API
+  manualCheck:
+    handler: aws/handler.manualCheck
+    description: Manually trigger monitor check
+    events:
+      - httpApi:
+          path: /api/monitors/{id}/check
+          method: post
+
+plugins:
+  - serverless-esbuild
+  - serverless-offline
+
+custom:
+  esbuild:
+    bundle: true
+    minify: false
+    sourcemap: true
+    exclude:
+      - '@aws-sdk/*'
+    target: node20
+    platform: node
+    concurrency: 10
+  
+  serverless-offline:
+    httpPort: 3001

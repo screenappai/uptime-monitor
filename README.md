@@ -532,6 +532,178 @@ curl -X POST https://your-app.vercel.app/api/cron/monitor \
 - MongoDB Atlas: Free tier (512 MB) sufficient for most use cases
 - **Total: $0-20/month**
 
+---
+
+### 🌩️ AWS Deployment (Recommended for Production)
+
+Deploy to AWS using Lambda (cron) + Amplify (frontend) for better performance and lower costs.
+
+**Why AWS?**
+- ✅ **15-minute timeout** vs 10 seconds on Vercel Hobby
+- ✅ **$0-9/month** vs $20/month Vercel Pro
+- ✅ **1M free Lambda requests/month**
+- ✅ **Better for multiple monitors**
+
+**Prerequisites:**
+- AWS Account
+- AWS CLI installed and configured
+- Node.js 18+ and npm
+
+**Quick Deploy:**
+
+1. **Install Serverless Framework:**
+```bash
+npm install -g serverless
+```
+
+2. **Configure AWS Credentials:**
+```bash
+aws configure
+# Enter your AWS Access Key ID and Secret Access Key
+# Region: us-east-1 (or your preferred region)
+```
+
+3. **Set Environment Variables:**
+
+**Important:** AWS Lambda needs a publicly accessible MongoDB (not Docker localhost).
+
+```bash
+# Create production environment file for AWS Lambda
+cp .env.example .env.production
+
+# Edit .env.production with production values
+notepad .env.production  # Windows
+# or
+nano .env.production     # Linux/Mac
+```
+
+**Required changes in `.env.production`:**
+- ✅ **MONGODB_URI**: Use MongoDB Atlas (not `mongodb://mongodb:27017`)
+  - Get free MongoDB Atlas at: https://www.mongodb.com/cloud/atlas
+  - Connection string format: `mongodb+srv://username:password@cluster.mongodb.net/uptime-monitor`
+- ✅ **EMAIL credentials**: Your SMTP settings (Gmail, AWS SES, etc.)
+- ✅ **TWILIO credentials**: If using phone call alerts
+- ✅ **CRON_SECRET**: Generate a random string for API security
+
+**Keep your local `.env` unchanged** - it's for Docker development with `mongodb://mongodb:27017`
+
+4. **Deploy Lambda Functions:**
+
+**Important:** Copy production env before deploying:
+```bash
+# Copy production environment to .env (required by Serverless)
+cp .env.production .env
+
+# Install dependencies and deploy
+npm install
+npm run deploy:lambda
+```
+
+This creates:
+- Lambda function for monitor checks
+- EventBridge cron trigger (runs every 1 minute)
+- API Gateway endpoints for manual triggers
+
+**Output will show your endpoints:**
+```
+endpoints:
+  GET - https://xxxxx.execute-api.us-east-1.amazonaws.com/cron/monitor
+```
+
+5. **Deploy Frontend to Amplify:**
+
+**Option A: Amplify Console (Easiest)**
+1. Go to [AWS Amplify Console](https://console.aws.amazon.com/amplify/)
+2. Click **"New app"** → **"Host web app"**
+3. Connect your Git repository
+4. Amplify auto-detects Next.js (`amplify.yml` included)
+5. Add environment variables from `.env`
+6. Click **"Save and deploy"**
+
+**Option B: Amplify CLI**
+```bash
+npm install -g @aws-amplify/cli
+amplify init
+amplify add hosting
+amplify publish
+```
+
+**Test Deployment:**
+```bash
+# Test Lambda function
+npm run invoke:cron
+
+# View logs
+npm run logs:cron
+```
+
+**Available npm Scripts:**
+```bash
+npm run deploy:lambda          # Deploy to production (uses .env.production)
+npm run deploy:lambda:dev      # Deploy to dev stage (uses .env)
+npm run invoke:cron           # Test cron function
+npm run logs:cron             # View Lambda logs (tail)
+npm run remove:lambda         # Remove all Lambda resources
+npm run offline               # Test Lambda locally
+```
+
+**Environment Files:**
+- `.env` → Local development (Docker with `mongodb://mongodb:27017`)
+- `.env.production` → AWS Lambda production (MongoDB Atlas)
+
+**Cost Breakdown:**
+
+| Component | Free Tier | Typical Cost |
+|-----------|-----------|--------------|
+| **Lambda** | 1M requests + 400K GB-seconds | $0-2/month |
+| **Amplify** | 1K build mins + 15 GB transfer | $0-7/month |
+| **MongoDB Atlas** | 512 MB storage | $0/month |
+| **Total** | | **$0-9/month** |
+
+**Monitoring:**
+- Lambda logs: CloudWatch Logs
+- Lambda metrics: CloudWatch Metrics
+- Amplify builds: Amplify Console
+- Set up CloudWatch alarms for errors
+
+**Architecture:**
+```
+EventBridge (Cron) → Lambda → MongoDB Atlas
+                                ↓
+                          Send Alerts
+                          
+User → Amplify (Next.js) → MongoDB Atlas
+```
+
+**Advantages over Vercel:**
+- 🚀 **15-minute timeout** vs 10 seconds
+- 💰 **Much cheaper** for cron workloads
+- 📊 **Better observability** with CloudWatch
+- ⚡ **More control** over execution environment
+- 🔧 **Easier debugging** with detailed logs
+
+**Troubleshooting:**
+
+1. **Lambda timeout:** Adjust in `serverless.yml` (default: 900s)
+2. **MongoDB connection:** Whitelist `0.0.0.0/0` in MongoDB Atlas
+3. **Amplify build fails:** Check environment variables
+4. **Cron not triggering:** Verify EventBridge rules in AWS Console
+
+**Rollback:**
+```bash
+# Lambda
+serverless rollback -t <timestamp>
+
+# Amplify
+# Go to Amplify Console → Deployments → Redeploy previous version
+```
+
+**Cleanup:**
+```bash
+npm run remove:lambda  # Remove Lambda functions
+amplify delete         # Remove Amplify app
+```
+
 ## CI/CD with GitHub Actions
 
 ### Automated Docker Image Builds

@@ -5,7 +5,7 @@ import { Monitor } from '@/types'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Trash2, Play, Pause, RefreshCw, BarChart3, Edit } from 'lucide-react'
+import { Trash2, Play, Pause, RefreshCw, BarChart3, Edit, ChevronDown, ChevronUp } from 'lucide-react'
 import Link from 'next/link'
 import { formatDuration } from '@/lib/utils'
 import MonitorForm from './MonitorForm'
@@ -21,6 +21,7 @@ export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCard
   const [checking, setChecking] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -244,29 +245,75 @@ export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCard
           </div>
 
           <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t dark:border-gray-700">
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-              <span className="text-gray-600 dark:text-gray-400">
-                {monitor.interval}s interval
-              </span>
-              <span className="text-gray-600 dark:text-gray-400">
-                {monitor.timeout}s timeout
-              </span>
-              {monitor.alerts?.email && monitor.alerts.email.length > 0 && (
+            <div
+              className="flex flex-wrap items-center justify-between gap-2 cursor-pointer"
+              onClick={() => setExpanded(!expanded)}
+            >
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm">
                 <span className="text-gray-600 dark:text-gray-400">
-                  {monitor.alerts.email.length} email{monitor.alerts.email.length > 1 ? 's' : ''}
+                  {monitor.interval}s interval
                 </span>
-              )}
-              {monitor.alerts?.phone && monitor.alerts.phone.length > 0 && (
                 <span className="text-gray-600 dark:text-gray-400">
-                  {monitor.alerts.phone.length} phone{monitor.alerts.phone.length > 1 ? 's' : ''}
+                  {monitor.timeout}s timeout
                 </span>
-              )}
-              {monitor.alerts?.webhook && monitor.alerts.webhook.length > 0 && (
-                <span className="text-gray-600 dark:text-gray-400">
-                  {monitor.alerts.webhook.length} webhook{monitor.alerts.webhook.length > 1 ? 's' : ''}
-                </span>
-              )}
+                {monitor.alerts?.email && monitor.alerts.email.length > 0 && (
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {monitor.alerts.email.length} email{monitor.alerts.email.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {monitor.alerts?.phone && monitor.alerts.phone.length > 0 && (
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {monitor.alerts.phone.length} phone{monitor.alerts.phone.length > 1 ? 's' : ''}
+                  </span>
+                )}
+                {monitor.alerts?.webhook && monitor.alerts.webhook.length > 0 && (
+                  <span className="text-gray-600 dark:text-gray-400">
+                    {monitor.alerts.webhook.length} webhook{monitor.alerts.webhook.length > 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+              <button
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                aria-label={expanded ? "Collapse" : "Expand"}
+              >
+                {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
             </div>
+
+            {expanded && (
+              <div className="mt-3 space-y-2 text-xs sm:text-sm">
+                {monitor.alerts?.email && monitor.alerts.email.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Email Alerts:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-gray-600 dark:text-gray-400">
+                      {monitor.alerts.email.map((email, index) => (
+                        <li key={index} className="truncate">{email}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {monitor.alerts?.phone && monitor.alerts.phone.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Phone Alerts:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-gray-600 dark:text-gray-400">
+                      {monitor.alerts.phone.map((phone, index) => (
+                        <li key={index}>{phone}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {monitor.alerts?.webhook && monitor.alerts.webhook.length > 0 && (
+                  <div>
+                    <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Webhook Alerts:</p>
+                    <ul className="list-disc list-inside space-y-0.5 text-gray-600 dark:text-gray-400">
+                      {monitor.alerts.webhook.map((webhook, index) => (
+                        <li key={index} className="truncate">{webhook}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </CardContent>
       )}

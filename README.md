@@ -56,11 +56,12 @@ The monitoring system uses a **unified API-based architecture** for maximum flex
 ### Dashboard
 The main dashboard shows all your monitors at a glance with status indicators and uptime statistics.
 
-### Monitor Details
-Detailed view of each monitor with response time charts and check history.
+![Dashboard](https://download.meetrix.io/uptimemonitor/uptimemonitor-dashboard.png)
 
-### Public Status Page
-Beautiful public status pages that you can share with your users.
+### Monitor Details
+Detailed view of each monitor with response time charts and flexible time range controls.
+
+![Monitor Details](https://download.meetrix.io/uptimemonitor/uptimemonitor-stats.png)
 
 ## Tech Stack
 

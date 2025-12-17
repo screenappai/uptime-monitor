@@ -26,6 +26,10 @@ const MonitorCheckSchema = new Schema<MonitorCheck>({
     type: Date,
     default: Date.now,
   },
+  attemptNumber: {
+    type: Number,
+    min: 1,
+  },
 })
 
 // Compound index for efficient queries

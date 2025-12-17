@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios'
+import { RetryConfig } from '@/types'
 
 export interface MonitorCheckResult {
   success: boolean
@@ -6,6 +7,34 @@ export interface MonitorCheckResult {
   statusCode?: number
   error?: string
   timestamp: Date
+  attemptNumber?: number
+}
+
+export function getRetryConfig(): RetryConfig {
+  return {
+    retryCount: parseInt(process.env.RETRY_COUNT || '3', 10),
+    initialDelay: parseInt(process.env.RETRY_INITIAL_DELAY || '1000', 10),
+    multiplier: parseFloat(process.env.RETRY_MULTIPLIER || '2'),
+    maxDelay: parseInt(process.env.RETRY_MAX_DELAY || '5000', 10),
+  }
+}
+
+/**
+ * Calculate the delay for the next retry attempt using exponential backoff
+ * @param attemptNumber - The current retry attempt number (0-indexed)
+ * @param config - Retry configuration
+ * @returns Delay in milliseconds
+ */
+function calculateBackoffDelay(attemptNumber: number, config: RetryConfig): number {
+  const delay = config.initialDelay * Math.pow(config.multiplier, attemptNumber)
+  return Math.min(delay, config.maxDelay)
+}
+
+/**
+ * Sleep for a specified duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 export async function checkEndpoint(
@@ -41,6 +70,57 @@ export async function checkEndpoint(
       statusCode: axiosError.response?.status,
       timestamp: new Date(),
     }
+  }
+}
+
+/**
+ * Enhanced endpoint check with retry logic and exponential backoff
+ * Only returns the final result after all retry attempts
+ * @param url - The URL to check
+ * @param timeout - Request timeout in milliseconds
+ * @param config - Retry configuration (uses default if not provided)
+ * @returns Final check result after all retries
+ */
+export async function checkEndpointWithRetry(
+  url: string,
+  timeout: number = 30000,
+  config?: RetryConfig
+): Promise<MonitorCheckResult> {
+  const retryConfig = config || getRetryConfig()
+  const totalAttempts = retryConfig.retryCount + 1
+  const overallStartTime = Date.now()
+
+  let lastResult: MonitorCheckResult | null = null
+
+  for (let attempt = 0; attempt < totalAttempts; attempt++) {
+    const result = await checkEndpoint(url, timeout)
+    lastResult = result
+
+    // Success - return immediately with metadata
+    if (result.success) {
+      return {
+        ...result,
+        responseTime: Date.now() - overallStartTime,
+        attemptNumber: attempt + 1,
+      }
+    }
+
+    // Not the last attempt - wait before retry
+    if (attempt < totalAttempts - 1) {
+      const backoffDelay = calculateBackoffDelay(attempt, retryConfig)
+      console.log(
+        `Check failed for ${url} (attempt ${attempt + 1}/${totalAttempts}). ` +
+        `Retrying in ${backoffDelay}ms...`
+      )
+      await sleep(backoffDelay)
+    }
+  }
+
+  // All attempts failed - return last result
+  return {
+    ...lastResult!,
+    responseTime: Date.now() - overallStartTime,
+    attemptNumber: totalAttempts,
   }
 }
 
@@ -125,7 +205,16 @@ export async function runMonitorChecks() {
 
     console.log(`Checking ${monitors.length} active monitors...`)
 
+    const startTime = Date.now()
+    const MAX_EXECUTION_TIME = 55000 // 55 seconds safety margin
+
     for (const monitor of monitors) {
+      // Check if we're approaching timeout limit
+      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
+        console.log('Approaching timeout limit, stopping checks')
+        break
+      }
+
       try {
         const now = new Date()
         const lastCheck = monitor.lastCheck ? new Date(monitor.lastCheck) : new Date(0)
@@ -135,7 +224,18 @@ export async function runMonitorChecks() {
         if (timeSinceLastCheck >= monitor.interval) {
           console.log(`Checking monitor: ${monitor.name} (${monitor.url})`)
 
-          const checkResult = await checkEndpoint(monitor.url, monitor.timeout * 1000)
+          const checkResult = await checkEndpointWithRetry(
+            monitor.url,
+            monitor.timeout * 1000
+          )
+
+          // Log retry information
+          if (checkResult.attemptNumber && checkResult.attemptNumber > 1) {
+            console.log(
+              `Monitor ${monitor.name}: ${checkResult.success ? 'Succeeded' : 'Failed'} ` +
+              `after ${checkResult.attemptNumber} attempts`
+            )
+          }
 
           // Save check result
           await MonitorCheck.create({
@@ -145,6 +245,7 @@ export async function runMonitorChecks() {
             statusCode: checkResult.statusCode,
             error: checkResult.error,
             timestamp: checkResult.timestamp,
+            attemptNumber: checkResult.attemptNumber,
           })
 
           // Update monitor status

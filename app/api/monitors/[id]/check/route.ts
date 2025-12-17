@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import MonitorModel from '@/models/Monitor'
 import MonitorCheckModel from '@/models/MonitorCheck'
-import { checkEndpoint } from '@/lib/monitor'
+import { checkEndpointWithRetry } from '@/lib/monitor'
 import { sendEmailAlert, sendWebhookAlert } from '@/lib/notifications'
 
 // POST /api/monitors/[id]/check - Manually trigger a check
@@ -24,7 +24,7 @@ export async function POST(
     }
 
     // Perform the check
-    const checkResult = await checkEndpoint(monitor.url, monitor.timeout * 1000)
+    const checkResult = await checkEndpointWithRetry(monitor.url, monitor.timeout * 1000)
 
     // Save check result
     await MonitorCheckModel.create({

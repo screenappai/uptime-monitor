@@ -1,3 +1,10 @@
+export interface RetryConfig {
+  retryCount: number
+  initialDelay: number
+  multiplier: number
+  maxDelay: number
+}
+
 export interface Monitor {
   _id?: string
   name: string
@@ -25,6 +32,7 @@ export interface MonitorCheck {
   statusCode?: number
   error?: string
   timestamp: Date
+  attemptNumber?: number
 }
 
 export interface MonitorStats {

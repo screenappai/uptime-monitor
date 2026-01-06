@@ -317,6 +317,50 @@ export async function runMonitorChecks() {
                 }
               }
             }
+
+            // Send FCM push notifications
+            try {
+              const { sendMonitorDownPush } = await import('./fcm')
+              await sendMonitorDownPush(
+                monitor._id.toString(),
+                monitor.name,
+                monitor.url,
+                checkResult.error || 'Unknown error'
+              )
+              console.log(`FCM push notification sent for ${monitor.name} going DOWN`)
+            } catch (error) {
+              console.error('Failed to send FCM push notification:', error)
+            }
+          }
+
+          // Send recovery alerts if status changed from down to up
+          if (previousStatus === 'down' && newStatus === 'up') {
+            console.log(`Sending recovery notifications for ${monitor.name}`)
+
+            // Expand contact lists for recovery emails
+            const expandedContacts = await expandContactLists(monitor.contactLists, monitor.alerts)
+
+            // Send recovery emails
+            if (expandedContacts.emails.length > 0) {
+              const { sendRecoveryNotification } = await import('./notifications')
+              for (const email of expandedContacts.emails) {
+                try {
+                  await sendRecoveryNotification(monitor.name, monitor.url, email)
+                  console.log(`Recovery email sent to ${email}`)
+                } catch (error) {
+                  console.error(`Failed to send recovery email to ${email}:`, error)
+                }
+              }
+            }
+
+            // Send FCM recovery push notifications
+            try {
+              const { sendMonitorRecoveryPush } = await import('./fcm')
+              await sendMonitorRecoveryPush(monitor._id.toString(), monitor.name, monitor.url)
+              console.log(`FCM recovery push notification sent for ${monitor.name} going UP`)
+            } catch (error) {
+              console.error('Failed to send FCM recovery push notification:', error)
+            }
           }
         }
       } catch (error) {

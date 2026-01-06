@@ -8,10 +8,21 @@ An open-source uptime monitoring system built with Next.js, MongoDB, and TypeScr
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green)
 [![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/frS8QgUygn)
 
+## Components
+
+This project consists of three main components:
+
+- **Server** (root directory) - Next.js web dashboard + API backend
+- **[Mobile App](./mobile/README.md)** - Flutter mobile app for Android/iOS with push notifications
+- **[Relay](./relay/README.md)** - FCM relay service for push notifications
+
+> **📖 For detailed setup, configuration, and development guides for each component, please refer to their respective README files linked above.**
+
 ## Features
 
 - **HTTP/HTTPS Monitoring** - Monitor any HTTP or HTTPS endpoint with customizable check intervals
 - **Real-time Alerts** - Get notified via email, webhooks, or phone calls when your services go down
+- **Mobile App** - Native Flutter app for Android/iOS with push notifications
 - **Public Status Pages** - Create beautiful, branded status pages for your services
 - **Historical Analytics** - Track uptime percentages and response times over 24h, 7d, and 30d periods
 - **Response Time Tracking** - Visualize response times with interactive charts (red dots for failures)
@@ -255,6 +266,76 @@ ADMIN_PASSWORD=$2b$10$... (the full hash)
 - Never commit `.env` file to version control
 - Use bcrypt hashed passwords in production
 - Rotate `NEXTAUTH_SECRET` periodically
+
+## Push Notifications Setup (Optional)
+
+The mobile app supports push notifications for monitor alerts. You have three options:
+
+### Option 1: Community Relay (Recommended - No Setup Required)
+
+Use the shared community FCM relay service. Add to `.env`:
+
+```env
+FCM_RELAY_URL=https://us-central1-uptime-monitor-483415.cloudfunctions.net/sendNotification
+FCM_RELAY_API_KEY=uptime-monitor-community-2026
+```
+
+**Pros:**
+- ✅ Zero configuration - works immediately
+- ✅ No Firebase account needed
+- ✅ Free community service
+
+**Cons:**
+- ⚠️ Shared infrastructure (rate limits apply)
+- ⚠️ Community service availability dependent on project maintainer
+
+### Option 2: Direct Firebase (Advanced)
+
+Use your own Firebase project for full control.
+
+**Steps to generate FIREBASE_SERVICE_ACCOUNT:**
+
+1. **Create Firebase Project:**
+   - Go to https://console.firebase.google.com
+   - Click "Add project" and follow the wizard
+
+2. **Generate Service Account Key:**
+   - In Firebase Console, go to **Project Settings** (gear icon) → **Service accounts**
+   - Click **"Generate new private key"**
+   - Click **"Generate key"** - a JSON file will download
+
+3. **Configure Environment Variable:**
+
+   Open the downloaded JSON file and copy its entire contents. Add to `.env`:
+
+   ```env
+   FIREBASE_SERVICE_ACCOUNT='{"type":"service_account","project_id":"your-project-id","private_key_id":"...","private_key":"-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}'
+   ```
+
+   **Important:** Wrap the entire JSON in single quotes and keep it on one line.
+
+4. **Build Custom Mobile App:**
+   - You'll need to build your own version of the mobile app
+   - Add your `google-services.json` to the Flutter project
+   - See [mobile/README.md](./mobile/README.md) for details
+
+**Pros:**
+- ✅ Full control over infrastructure
+- ✅ No rate limit concerns
+- ✅ Better for high-volume deployments
+
+**Cons:**
+- ⚠️ Requires Firebase account
+- ⚠️ Requires building custom mobile app
+- ⚠️ More complex setup
+
+### Option 3: Deploy Your Own Relay
+
+Deploy your own FCM relay service. See [relay/README.md](./relay/README.md) for setup instructions.
+
+### Option 4: No Notifications
+
+Don't configure any FCM settings - push notifications will be disabled.
 
 ## Usage
 
@@ -694,7 +775,7 @@ Contributions are welcome! Please follow these steps:
 - [ ] Incident management
 - [ ] Slack integration
 - [ ] Discord integration
-- [ ] Mobile app
+- [x] Mobile app (Android/iOS with push notifications)
 
 ## License
 

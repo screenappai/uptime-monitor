@@ -23,6 +23,13 @@ export default withAuth(
           }
         }
 
+        // Check for mobile JWT token in Authorization header
+        const authHeader = req.headers.get('authorization')
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          // Allow request - actual token validation happens in the API route
+          return true
+        }
+
         // All other protected routes require authentication
         return !!token
       },
@@ -35,5 +42,6 @@ export const config = {
     '/dashboard/:path*',
     '/api/monitors/:path*',
     '/api/status-pages/:path*',
+    '/api/devices/:path*',
   ],
 }

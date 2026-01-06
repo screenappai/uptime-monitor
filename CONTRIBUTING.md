@@ -94,6 +94,27 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
    npm run monitor
    ```
 
+### Mobile App Development
+
+For mobile app development:
+
+1. Navigate to the mobile directory:
+   ```bash
+   cd mobile
+   ```
+
+2. Install Flutter dependencies:
+   ```bash
+   flutter pub get
+   ```
+
+3. Run on Android/iOS:
+   ```bash
+   flutter run
+   ```
+
+See [mobile/README.md](./mobile/README.md) for detailed mobile development setup.
+
 ## Coding Standards
 
 ### TypeScript
@@ -131,21 +152,29 @@ docs: update installation guide
 ## Project Structure
 
 ```
-uptime-monitor/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── dashboard/         # Dashboard pages
-│   └── status/            # Public status pages
-├── components/            # React components
-│   └── ui/               # UI components
-├── lib/                   # Utility functions
-│   ├── db.ts             # Database connection
-│   ├── monitor.ts        # Monitoring logic
-│   └── notifications.ts  # Alert system
-├── models/                # MongoDB models
-├── scripts/               # Background scripts
-├── types/                 # TypeScript types
-└── public/                # Static assets
+uptime-monitor/            # Root = Server (Next.js)
+├── app/                   # Next.js app directory
+│   ├── api/              # API routes
+│   ├── dashboard/        # Dashboard pages
+│   └── status/           # Public status pages
+├── components/           # React components
+│   └── ui/              # UI components
+├── lib/                  # Utility functions
+│   ├── db.ts            # Database connection
+│   ├── monitor.ts       # Monitoring logic
+│   └── notifications.ts # Alert system
+├── models/               # MongoDB models
+├── scripts/              # Background scripts
+├── types/                # TypeScript types
+├── public/               # Static assets
+│
+├── mobile/               # Flutter Mobile App
+│   ├── lib/             # Flutter source code
+│   ├── android/         # Android platform files
+│   └── ios/             # iOS platform files
+│
+└── relay/                # FCM Relay Service
+    └── functions/       # Firebase Cloud Functions
 ```
 
 ## Testing

@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.uptimemonitor" "\0"
+            VALUE "CompanyName", "io.screenapp" "\0"
             VALUE "FileDescription", "uptime_monitor_mobile" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "uptime_monitor_mobile" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.uptimemonitor. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 io.screenapp. All rights reserved." "\0"
             VALUE "OriginalFilename", "uptime_monitor_mobile.exe" "\0"
             VALUE "ProductName", "uptime_monitor_mobile" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

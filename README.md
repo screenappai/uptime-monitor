@@ -7,6 +7,7 @@ An open-source uptime monitoring system built with Next.js, MongoDB, and TypeScr
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue)
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green)
 [![Discord](https://img.shields.io/discord/1234567890?color=7289da&label=Discord&logo=discord&logoColor=white)](https://discord.gg/frS8QgUygn)
+[![Get it on Google Play](https://img.shields.io/badge/Google_Play-414141?style=flat&logo=google-play&logoColor=white)](https://play.google.com/store/apps/details?id=io.screenapp.uptime_monitor_mobile)
 
 ## Components
 
@@ -14,6 +15,7 @@ This project consists of three main components:
 
 - **Server** (root directory) - Next.js web dashboard + API backend
 - **[Mobile App](./mobile/README.md)** - Flutter mobile app for Android/iOS with push notifications
+  - 📱 [Download on Google Play](https://play.google.com/store/apps/details?id=io.screenapp.uptime_monitor_mobile)
 - **[Relay](./relay/README.md)** - FCM relay service for push notifications
 
 > **📖 For detailed setup, configuration, and development guides for each component, please refer to their respective README files linked above.**
@@ -22,7 +24,7 @@ This project consists of three main components:
 
 - **HTTP/HTTPS Monitoring** - Monitor any HTTP or HTTPS endpoint with customizable check intervals
 - **Real-time Alerts** - Get notified via email, webhooks, or phone calls when your services go down
-- **Mobile App** - Native Flutter app for Android/iOS with push notifications
+- **Mobile App** - Native Flutter app for Android/iOS with push notifications ([Download on Google Play](https://play.google.com/store/apps/details?id=io.screenapp.uptime_monitor_mobile))
 - **Public Status Pages** - Create beautiful, branded status pages for your services
 - **Historical Analytics** - Track uptime percentages and response times over 24h, 7d, and 30d periods
 - **Response Time Tracking** - Visualize response times with interactive charts (red dots for failures)
@@ -64,7 +66,7 @@ The monitoring system uses a **unified API-based architecture** for maximum flex
 
 ## Screenshots
 
-### Dashboard
+### Web Dashboard
 The main dashboard shows all your monitors at a glance with status indicators and uptime statistics.
 
 ![Dashboard](https://download.meetrix.io/uptimemonitor/uptimemonitor-dashboard.png)
@@ -73,6 +75,24 @@ The main dashboard shows all your monitors at a glance with status indicators an
 Detailed view of each monitor with response time charts and flexible time range controls.
 
 ![Monitor Details](https://download.meetrix.io/uptimemonitor/uptimemonitor-stats.png)
+
+### Mobile App
+
+Monitor your services on the go with the native mobile app. [Download on Google Play](https://play.google.com/store/apps/details?id=io.screenapp.uptime_monitor_mobile)
+
+<p float="left">
+  <img src="https://download.meetrix.io/uptimemonitor/android/dashboard.jpg" width="200" alt="Mobile Dashboard" />
+  <img src="https://download.meetrix.io/uptimemonitor/android/monitor-details.jpg" width="200" alt="Monitor Details" />
+  <img src="https://download.meetrix.io/uptimemonitor/android/stats.jpg" width="200" alt="Stats & Analytics" />
+  <img src="https://download.meetrix.io/uptimemonitor/android/response-chart.jpg" width="200" alt="Response Time Chart" />
+</p>
+
+**Features:**
+- Real-time monitor status at a glance
+- Push notifications for downtime alerts
+- Detailed uptime statistics (24h, 7d, 30d)
+- Interactive response time charts
+- Monitor configuration and management
 
 ## Tech Stack
 

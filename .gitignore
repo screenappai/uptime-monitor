@@ -51,3 +51,6 @@ relay/.firebaserc
 relay/functions/node_modules/
 relay/functions/.env
 relay/functions/.runtimeconfig.json
+
+# Claude Code
+.claude/

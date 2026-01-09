@@ -2,7 +2,7 @@ name: uptime_monitor_mobile
 description: "Uptime Monitor Mobile App - Monitor your services on the go"
 publish_to: 'none'
 
-version: 1.0.1+3
+version: 1.0.1+5
 
 environment:
   sdk: ^3.10.4
@@ -40,6 +40,7 @@ dependencies:
   # Utilities
   json_annotation: ^4.8.1
   equatable: ^2.0.5
+  logger: ^2.6.2
 
 dev_dependencies:
   flutter_test:

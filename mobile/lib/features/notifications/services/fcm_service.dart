@@ -3,15 +3,17 @@ import 'dart:convert';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/services/logger_service.dart';
 import '../../../core/services/navigation_service.dart';
 
 // Background message handler - must be top-level function
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // Handle background message
-  print('Handling background message: ${message.messageId}');
+  logger.d('Handling background message: ${message.messageId}');
 }
 
 class FCMService {
@@ -27,6 +29,13 @@ class FCMService {
   Future<void> initialize() async {
     // Request permissions
     await _requestPermissions();
+
+    // Enable foreground notifications on iOS
+    await _messaging.setForegroundNotificationPresentationOptions(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
 
     // Initialize local notifications
     await _initializeLocalNotifications();
@@ -60,7 +69,7 @@ class FCMService {
       provisional: false,
     );
 
-    print('FCM Authorization status: ${settings.authorizationStatus}');
+    logger.i('FCM Authorization status: ${settings.authorizationStatus}');
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -102,11 +111,12 @@ class FCMService {
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    print('Foreground message received: ${message.notification?.title}');
-    print('Message data: ${message.data}');
+    logger.d('Foreground message received: ${message.notification?.title}');
+    logger.d('Message data: ${message.data}');
 
     // Show local notification when app is in foreground
-    if (message.notification != null) {
+    // Only needed on Android - iOS handles it via setForegroundNotificationPresentationOptions
+    if (Platform.isAndroid && message.notification != null) {
       await _showLocalNotification(
         title: message.notification!.title ?? 'Uptime Monitor',
         body: message.notification!.body ?? '',
@@ -116,7 +126,7 @@ class FCMService {
   }
 
   void _handleNotificationTap(RemoteMessage message) {
-    print('Notification tapped: ${message.data}');
+    logger.d('Notification tapped: ${message.data}');
 
     // Extract monitorId from notification data
     final data = message.data;
@@ -131,7 +141,7 @@ class FCMService {
 
   void _handleNotificationPayload(String payload) {
     try {
-      print('Handling notification payload: $payload');
+      logger.d('Handling notification payload: $payload');
       final data = jsonDecode(payload) as Map<String, dynamic>;
 
       if (data.containsKey('monitorId')) {
@@ -141,7 +151,7 @@ class FCMService {
         NavigationService.instance.navigateToMonitors();
       }
     } catch (e) {
-      print('Error parsing notification payload: $e');
+      logger.e('Error parsing notification payload', error: e);
       NavigationService.instance.navigateToMonitors();
     }
   }
@@ -184,33 +194,34 @@ class FCMService {
     try {
       return await _messaging.getToken();
     } catch (e) {
-      print('Error getting FCM token: $e');
+      logger.e('Error getting FCM token', error: e);
       return null;
     }
   }
 
   Future<void> registerDeviceToken() async {
-    print('FCM: Starting device token registration...');
+    logger.d('FCM: Starting device token registration...');
     final token = await getToken();
     if (token != null) {
-      print('FCM: Got token: ${token.substring(0, 20)}...');
+      logger.d('FCM: Got token: $token');
       await _saveAndRegisterToken(token);
     } else {
-      print('FCM: Failed to get FCM token');
+      logger.w('FCM: Failed to get FCM token');
     }
   }
 
   Future<void> _saveAndRegisterToken(String token) async {
-    // Save token locally
-    await _storage.write(key: 'fcm_token', value: token);
-    print('FCM: Token saved locally');
+    // Save token locally using SharedPreferences (FCM token is not sensitive)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('fcm_token', token);
+    logger.d('FCM: Token saved locally');
 
     // Register with backend
     try {
       final authToken = await _storage.read(key: 'auth_token');
-      print('FCM: Auth token exists: ${authToken != null}');
+      logger.d('FCM: Auth token exists: ${authToken != null}');
       if (authToken != null) {
-        print('FCM: Sending token to ${ApiConstants.devicesEndpoint}...');
+        logger.d('FCM: Sending token to ${ApiConstants.devicesEndpoint}...');
         final response = await ApiClient.instance.post(
           ApiConstants.devicesEndpoint,
           data: {
@@ -218,29 +229,30 @@ class FCMService {
             'platform': Platform.isIOS ? 'ios' : 'android',
           },
         );
-        print('FCM: Backend response: ${response.statusCode} - ${response.data}');
-        print('FCM: Token registered with backend successfully');
+        logger.d('FCM: Backend response: ${response.statusCode} - ${response.data}');
+        logger.i('FCM: Token registered with backend successfully');
       } else {
-        print('FCM: No auth token found, skipping backend registration');
+        logger.w('FCM: No auth token found, skipping backend registration');
       }
     } catch (e) {
-      print('FCM: Error registering token with backend: $e');
+      logger.e('FCM: Error registering token with backend', error: e);
     }
   }
 
   Future<void> unregisterDeviceToken() async {
     try {
-      final token = await _storage.read(key: 'fcm_token');
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('fcm_token');
       if (token != null) {
         await ApiClient.instance.delete(
           ApiConstants.devicesEndpoint,
           data: {'token': token},
         );
-        await _storage.delete(key: 'fcm_token');
-        print('FCM token unregistered from backend');
+        await prefs.remove('fcm_token');
+        logger.i('FCM token unregistered from backend');
       }
     } catch (e) {
-      print('Error unregistering FCM token: $e');
+      logger.e('Error unregistering FCM token', error: e);
     }
   }
 }

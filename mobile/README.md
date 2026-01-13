@@ -14,13 +14,31 @@ Native mobile application for Uptime Monitor built with Flutter. Monitor your se
 
 ## Prerequisites
 
-- Flutter SDK 3.0+
+- Flutter SDK 3.38.5 (see setup options below)
 - Android Studio / Xcode (for Android/iOS development)
 - A running Uptime Monitor backend instance
 
 ## Installation
 
 ### 1. Clone and Setup
+
+**Option A: Using FVM (recommended)**
+
+[FVM](https://fvm.app/) manages Flutter versions per project. The required version is specified in `.fvmrc`.
+
+```bash
+# Install FVM if you don't have it
+dart pub global activate fvm
+
+# Install the project's Flutter version and get dependencies
+cd mobile
+fvm install
+fvm flutter pub get
+```
+
+**Option B: Using system Flutter**
+
+Ensure you have Flutter 3.38.5+ installed, then:
 
 ```bash
 cd mobile
@@ -114,7 +132,7 @@ Your Uptime Monitor backend must have:
 
 ## Tech Stack
 
-- **Framework**: Flutter 3.0+
+- **Framework**: Flutter 3.38.5
 - **State Management**: Riverpod
 - **Navigation**: go_router
 - **HTTP Client**: Dio

@@ -8,7 +8,7 @@
 PRODUCT_NAME = uptime_monitor_mobile
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = io.screenapp.uptimeMonitorMobile
+PRODUCT_BUNDLE_IDENTIFIER = io.screenapp.uptime-monitor
 
 // The copyright displayed in application information
 PRODUCT_COPYRIGHT = Copyright © 2025 io.screenapp. All rights reserved.

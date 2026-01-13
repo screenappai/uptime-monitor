@@ -129,11 +129,14 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
               title: const Text('Server Configuration'),
             ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Form(
+                key: _formKey,
+                child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.isInitialSetup) ...[
@@ -240,8 +243,10 @@ class _ServerConfigScreenState extends State<ServerConfigScreen> {
                         : Text(widget.isInitialSetup ? 'Continue' : 'Save'),
                   ),
                 ),
-              ],
+                ],
+              ),
             ),
+          ),
           ),
         ),
       ),

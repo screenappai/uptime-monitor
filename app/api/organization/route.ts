@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import OrganizationModel from '@/models/Organization'
 import UserModel from '@/models/User'
+import MonitorModel from '@/models/Monitor'
+import ContactListModel from '@/models/ContactList'
 import { requireUniversalAuth, requireRole, canManageOrganization } from '@/lib/auth-helpers'
 import { z } from 'zod'
 
@@ -18,9 +20,6 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     const organization = await OrganizationModel.findById(user!.organizationId)
-    const memberCount = await UserModel.countDocuments({
-      organizationId: user!.organizationId,
-    })
 
     if (!organization) {
       return NextResponse.json(
@@ -29,11 +28,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Count all resources in parallel
+    const [memberCount, monitorCount, contactListCount] = await Promise.all([
+      UserModel.countDocuments({ organizationId: user!.organizationId }),
+      MonitorModel.countDocuments({ organizationId: user!.organizationId }),
+      ContactListModel.countDocuments({ organizationId: user!.organizationId }),
+    ])
+
     return NextResponse.json({
       success: true,
       data: {
         ...organization.toObject(),
         memberCount,
+        monitorCount,
+        contactListCount,
       },
     })
   } catch (error) {

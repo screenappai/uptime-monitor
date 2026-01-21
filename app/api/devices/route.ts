@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireMobileAuth } from '@/lib/auth-helpers'
+import { requireMobileAuth, getOrganizationFilter } from '@/lib/auth-helpers'
 import { connectDB } from '@/lib/db'
 import DeviceTokenModel from '@/models/DeviceToken'
 import { z } from 'zod'
@@ -33,10 +33,16 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    // Upsert device token (update if exists, create if not)
+    // Upsert device token with user and organization context
     await DeviceTokenModel.findOneAndUpdate(
       { token },
-      { token, platform, isActive: true },
+      {
+        token,
+        platform,
+        isActive: true,
+        userId: user!.id,
+        organizationId: user!.organizationId,
+      },
       { upsert: true, new: true }
     )
 
@@ -73,9 +79,12 @@ export async function DELETE(request: NextRequest) {
 
     await connectDB()
 
-    // Mark device as inactive (soft delete)
+    // Mark device as inactive (soft delete) - only if belongs to user
     await DeviceTokenModel.findOneAndUpdate(
-      { token },
+      {
+        token,
+        userId: user!.id,
+      },
       { isActive: false }
     )
 
@@ -92,7 +101,7 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// GET /api/devices - Get all active device tokens (for admin/debugging)
+// GET /api/devices - Get all active device tokens for the organization
 export async function GET(request: NextRequest) {
   try {
     const { error, user } = await requireMobileAuth(request)
@@ -100,8 +109,12 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const devices = await DeviceTokenModel.find({ isActive: true })
-      .select('token platform createdAt updatedAt')
+    // Get devices for the user's organization
+    const devices = await DeviceTokenModel.find({
+      ...getOrganizationFilter(user!),
+      isActive: true,
+    })
+      .select('token platform userId createdAt updatedAt')
       .sort({ createdAt: -1 })
 
     return NextResponse.json({

@@ -3,6 +3,8 @@ class ApiConstants {
 
   // Auth endpoints
   static const String loginEndpoint = '/api/auth/mobile';
+  static const String sendOTPEndpoint = '/api/auth/send-otp';
+  static const String verifyOTPEndpoint = '/api/auth/verify-otp';
 
   // Device endpoints
   static const String devicesEndpoint = '/api/devices';

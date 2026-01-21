@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import StatusPageModel from '@/models/StatusPage'
+import { requireUniversalAuth, getOrganizationFilter, requireRole } from '@/lib/auth-helpers'
 import { z } from 'zod'
 
 const createStatusPageSchema = z.object({
@@ -14,11 +15,16 @@ const createStatusPageSchema = z.object({
   }).optional(),
 })
 
-// GET /api/status-pages - List all status pages
-export async function GET() {
+// GET /api/status-pages - List status pages for current organization
+export async function GET(request: NextRequest) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
     await connectDB()
-    const statusPages = await StatusPageModel.find().sort({ createdAt: -1 })
+
+    const statusPages = await StatusPageModel.find(getOrganizationFilter(user!))
+      .sort({ createdAt: -1 })
 
     return NextResponse.json({
       success: true,
@@ -33,16 +39,26 @@ export async function GET() {
   }
 }
 
-// POST /api/status-pages - Create a new status page
+// POST /api/status-pages - Create a new status page in current organization
 export async function POST(request: NextRequest) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can create status pages
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
+
     const body = await request.json()
     const validatedData = createStatusPageSchema.parse(body)
 
     await connectDB()
 
-    // Check if slug already exists
-    const existing = await StatusPageModel.findOne({ slug: validatedData.slug })
+    // Check if slug already exists within the organization
+    const existing = await StatusPageModel.findOne({
+      slug: validatedData.slug,
+      ...getOrganizationFilter(user!),
+    })
     if (existing) {
       return NextResponse.json(
         { success: false, error: 'A status page with this slug already exists' },
@@ -50,7 +66,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const statusPage = await StatusPageModel.create(validatedData)
+    const statusPage = await StatusPageModel.create({
+      ...validatedData,
+      organizationId: user!.organizationId,
+    })
 
     return NextResponse.json({
       success: true,

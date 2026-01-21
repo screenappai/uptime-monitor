@@ -34,3 +34,28 @@ export function calculateUptime(checks: { success: boolean }[]): number {
   const successful = checks.filter(c => c.success).length
   return (successful / checks.length) * 100
 }
+
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+export async function generateUniqueSlug(
+  name: string,
+  checkExists: (slug: string) => Promise<boolean>
+): Promise<string> {
+  let slug = generateSlug(name)
+  let counter = 0
+  let candidateSlug = slug
+
+  while (await checkExists(candidateSlug)) {
+    counter++
+    candidateSlug = `${slug}-${counter}`
+  }
+
+  return candidateSlug
+}

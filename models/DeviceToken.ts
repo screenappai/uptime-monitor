@@ -1,14 +1,7 @@
-import mongoose, { Schema, Model, Document } from 'mongoose'
+import mongoose, { Schema, Model } from 'mongoose'
+import { DeviceToken } from '@/types'
 
-export interface IDeviceToken extends Document {
-  token: string
-  platform: 'ios' | 'android'
-  isActive: boolean
-  createdAt: Date
-  updatedAt: Date
-}
-
-const DeviceTokenSchema = new Schema<IDeviceToken>(
+const DeviceTokenSchema = new Schema(
   {
     token: {
       type: String,
@@ -25,6 +18,18 @@ const DeviceTokenSchema = new Schema<IDeviceToken>(
       type: Boolean,
       default: true,
     },
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -32,8 +37,10 @@ const DeviceTokenSchema = new Schema<IDeviceToken>(
 )
 
 DeviceTokenSchema.index({ isActive: 1 })
+DeviceTokenSchema.index({ organizationId: 1, isActive: 1 })
+DeviceTokenSchema.index({ userId: 1, isActive: 1 })
 
-const DeviceTokenModel: Model<IDeviceToken> =
-  mongoose.models.DeviceToken || mongoose.model<IDeviceToken>('DeviceToken', DeviceTokenSchema)
+const DeviceTokenModel: Model<DeviceToken> =
+  mongoose.models.DeviceToken || mongoose.model<DeviceToken>('DeviceToken', DeviceTokenSchema)
 
 export default DeviceTokenModel

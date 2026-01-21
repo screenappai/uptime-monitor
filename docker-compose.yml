@@ -10,6 +10,17 @@ services:
     environment:
       MONGO_INITDB_DATABASE: uptime-monitor
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: uptime-monitor-mailpit-dev
+    restart: unless-stopped
+    ports:
+      - "8027:8025"   # Web UI
+      - "1027:1025"   # SMTP
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
   app:
     image: node:20-alpine
     container_name: uptime-monitor-app-dev
@@ -19,6 +30,7 @@ services:
       - "3200:3200"
     depends_on:
       - mongodb
+      - mailpit
     volumes:
       - .:/app
       - /app/node_modules
@@ -32,11 +44,11 @@ services:
       - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - EMAIL_HOST=${EMAIL_HOST}
-      - EMAIL_PORT=${EMAIL_PORT}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - EMAIL_FROM=${EMAIL_FROM}
+      - EMAIL_HOST=${EMAIL_HOST:-mailpit}
+      - EMAIL_PORT=${EMAIL_PORT:-1025}
+      - EMAIL_USER=${EMAIL_USER:-}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD:-}
+      - EMAIL_FROM=${EMAIL_FROM:-noreply@localhost}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}

@@ -4,6 +4,8 @@ import MonitorModel from '@/models/Monitor'
 import MonitorCheckModel from '@/models/MonitorCheck'
 import { checkEndpointWithRetry } from '@/lib/monitor'
 import { sendEmailAlert, sendWebhookAlert } from '@/lib/notifications'
+import { requireUniversalAuth, getOrganizationFilter, requireRole } from '@/lib/auth-helpers'
+import mongoose from 'mongoose'
 
 // POST /api/monitors/[id]/check - Manually trigger a check
 export async function POST(
@@ -11,10 +13,21 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can trigger manual checks
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
+
     const { id } = await params
     await connectDB()
 
-    const monitor = await MonitorModel.findById(id)
+    // Find monitor scoped to user's organization
+    const monitor = await MonitorModel.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
 
     if (!monitor) {
       return NextResponse.json(

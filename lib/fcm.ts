@@ -56,10 +56,14 @@ function getFCMConfig(): FCMConfig {
   return { type: 'disabled' }
 }
 
-export async function getActiveDeviceTokens(): Promise<string[]> {
+export async function getActiveDeviceTokens(organizationId?: string): Promise<string[]> {
   try {
     await connectDB()
-    const devices = await DeviceTokenModel.find({ isActive: true }).select('token')
+    const query: { isActive: boolean; organizationId?: string } = { isActive: true }
+    if (organizationId) {
+      query.organizationId = organizationId
+    }
+    const devices = await DeviceTokenModel.find(query).select('token')
     return devices.map(device => device.token)
   } catch (error) {
     console.error('Failed to get active device tokens:', error)
@@ -228,9 +232,10 @@ export async function sendMonitorDownPush(
   monitorId: string,
   monitorName: string,
   url: string,
-  error: string
+  error: string,
+  organizationId?: string
 ): Promise<void> {
-  const tokens = await getActiveDeviceTokens()
+  const tokens = await getActiveDeviceTokens(organizationId)
 
   await sendPushNotification(
     tokens,
@@ -250,9 +255,10 @@ export async function sendMonitorDownPush(
 export async function sendMonitorRecoveryPush(
   monitorId: string,
   monitorName: string,
-  url: string
+  url: string,
+  organizationId?: string
 ): Promise<void> {
-  const tokens = await getActiveDeviceTokens()
+  const tokens = await getActiveDeviceTokens(organizationId)
 
   await sendPushNotification(
     tokens,

@@ -1,73 +1,100 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { connectDB } from '@/lib/db'
+import UserModel from '@/models/User'
+import OTPTokenModel from '@/models/OTPToken'
+import OrganizationModel from '@/models/Organization'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
+// POST /api/auth/mobile - Verify OTP and return JWT for mobile
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { username, password } = body
+    const { email, code } = body
 
-    if (!username || !password) {
+    if (!email || !code) {
       return NextResponse.json(
-        { success: false, error: 'Username and password are required' },
+        { success: false, error: 'Email and OTP code are required' },
         { status: 400 }
       )
     }
 
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin'
-    const adminPassword = process.env.ADMIN_PASSWORD
+    const normalizedEmail = email.toLowerCase()
 
-    if (!adminPassword) {
-      console.error('ADMIN_PASSWORD environment variable is not set')
+    await connectDB()
+
+    // Find and verify OTP
+    const otpToken = await OTPTokenModel.findOne({
+      email: normalizedEmail,
+      used: false,
+      expiresAt: { $gt: new Date() },
+    }).sort({ createdAt: -1 })
+
+    if (!otpToken) {
       return NextResponse.json(
-        { success: false, error: 'Server configuration error' },
-        { status: 500 }
+        { success: false, error: 'OTP expired or not found' },
+        { status: 400 }
       )
     }
 
-    if (username !== adminUsername) {
+    // Check attempts
+    if (otpToken.attempts >= 5) {
+      await OTPTokenModel.findByIdAndUpdate(otpToken._id, { used: true })
       return NextResponse.json(
-        { success: false, error: 'Invalid credentials' },
-        { status: 401 }
+        { success: false, error: 'Too many invalid attempts. Request a new OTP.' },
+        { status: 400 }
       )
     }
 
-    // Check if password is hashed (starts with $2a$ or $2b$)
-    const isHashed = adminPassword.startsWith('$2a$') || adminPassword.startsWith('$2b$')
-
-    let isValid = false
-    if (isHashed) {
-      isValid = await bcrypt.compare(password, adminPassword)
-    } else {
-      // Plain text comparison (not recommended for production)
-      isValid = password === adminPassword
-    }
-
+    const isValid = await bcrypt.compare(code, otpToken.code)
     if (!isValid) {
+      await OTPTokenModel.findByIdAndUpdate(otpToken._id, {
+        $inc: { attempts: 1 },
+      })
       return NextResponse.json(
-        { success: false, error: 'Invalid credentials' },
+        { success: false, error: 'Invalid OTP code' },
         { status: 401 }
       )
     }
+
+    // Mark OTP as used
+    await OTPTokenModel.findByIdAndUpdate(otpToken._id, { used: true })
+
+    // Find user
+    const user = await UserModel.findOne({ email: normalizedEmail })
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found. Please sign up first.' },
+        { status: 404 }
+      )
+    }
+
+    // Update last login
+    await UserModel.findByIdAndUpdate(user._id, {
+      lastLoginAt: new Date(),
+    })
+
+    const organization = await OrganizationModel.findById(user.organizationId)
 
     // Generate JWT token
     const secret = process.env.NEXTAUTH_SECRET
     if (!secret) {
-      console.error('NEXTAUTH_SECRET environment variable is not set')
       return NextResponse.json(
         { success: false, error: 'Server configuration error' },
         { status: 500 }
       )
     }
 
-    const expiresIn = 24 * 60 * 60 // 24 hours in seconds
+    const expiresIn = 30 * 24 * 60 * 60 // 30 days for mobile
     const expiresAt = Math.floor(Date.now() / 1000) + expiresIn
 
     const token = jwt.sign(
       {
-        id: '1',
-        name: adminUsername,
-        email: `${adminUsername}@localhost`,
+        sub: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        organizationId: user.organizationId.toString(),
+        role: user.role,
         iat: Math.floor(Date.now() / 1000),
         exp: expiresAt,
       },
@@ -78,11 +105,17 @@ export async function POST(request: NextRequest) {
       success: true,
       data: {
         token,
-        expiresAt: expiresAt * 1000, // Convert to milliseconds for client
+        expiresAt: expiresAt * 1000,
         user: {
-          id: '1',
-          name: adminUsername,
-          email: `${adminUsername}@localhost`,
+          id: user._id.toString(),
+          email: user.email,
+          name: user.name,
+          role: user.role,
+        },
+        organization: {
+          id: organization?._id.toString(),
+          name: organization?.name,
+          slug: organization?.slug,
         },
       },
     })

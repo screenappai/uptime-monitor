@@ -7,12 +7,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import ContactListForm from '@/components/ContactListForm'
 import ContactListCard from '@/components/ContactListCard'
 import { Plus, RefreshCw, ArrowLeft } from 'lucide-react'
-import { IContactList } from '@/models/ContactList'
+import { ContactList } from '@/types'
 import Link from 'next/link'
 
 export default function ContactListsPage() {
   const { data: session } = useSession()
-  const [contactLists, setContactLists] = useState<IContactList[]>([])
+  const [contactLists, setContactLists] = useState<ContactList[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
 
@@ -54,6 +54,9 @@ export default function ContactListsPage() {
     0
   )
 
+  // Check if user can manage (create/edit/delete) resources
+  const canManage = session?.user?.role === 'owner' || session?.user?.role === 'admin'
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-4 sm:py-8">
@@ -83,13 +86,15 @@ export default function ContactListsPage() {
               <RefreshCw className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              size="sm"
-            >
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Add Contact List</span>
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => setShowForm(!showForm)}
+                size="sm"
+              >
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Contact List</span>
+              </Button>
+            )}
           </div>
         </div>
 
@@ -118,7 +123,7 @@ export default function ContactListsPage() {
           </Card>
         </div>
 
-        {showForm && (
+        {showForm && canManage && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Create New Contact List</CardTitle>
@@ -143,12 +148,16 @@ export default function ContactListsPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                No contact lists yet. Create your first contact list to get started!
+                {canManage
+                  ? 'No contact lists yet. Create your first contact list to get started!'
+                  : 'No contact lists yet. Ask an admin to create contact lists.'}
               </p>
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Contact List
-              </Button>
+              {canManage && (
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Contact List
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -159,6 +168,7 @@ export default function ContactListsPage() {
                 contactList={contactList}
                 onDelete={handleContactListDeleted}
                 onUpdate={handleContactListUpdated}
+                canManage={canManage}
               />
             ))}
           </div>

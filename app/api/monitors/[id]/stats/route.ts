@@ -1,17 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
+import MonitorModel from '@/models/Monitor'
 import MonitorCheckModel from '@/models/MonitorCheck'
 import { calculateUptime, calculateAverageResponseTime } from '@/lib/monitor'
+import { requireUniversalAuth, getOrganizationFilter } from '@/lib/auth-helpers'
+import mongoose from 'mongoose'
 
-// GET /api/monitors/[id]/stats - Get stats for a monitor
+// GET /api/monitors/[id]/stats - Get stats for a monitor (scoped to organization)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await connectDB()
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
 
     const { id } = await params
+    await connectDB()
+
+    // Verify monitor belongs to user's organization
+    const monitor = await MonitorModel.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
+
+    if (!monitor) {
+      return NextResponse.json(
+        { success: false, error: 'Monitor not found' },
+        { status: 404 }
+      )
+    }
+
     const now = new Date()
 
     // Get checks for different time periods

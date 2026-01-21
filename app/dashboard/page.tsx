@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import MonitorForm from '@/components/MonitorForm'
 import MonitorCard from '@/components/MonitorCard'
-import { Plus, RefreshCw, LogOut, Users } from 'lucide-react'
+import { Plus, RefreshCw, LogOut, Users, Settings, UserPlus } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
@@ -54,6 +54,9 @@ export default function DashboardPage() {
   const downMonitors = monitors.filter(m => m.status === 'down').length
   const pausedMonitors = monitors.filter(m => m.status === 'paused').length
 
+  // Check if user can manage (create/edit/delete) resources
+  const canManage = session?.user?.role === 'owner' || session?.user?.role === 'admin'
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-4 sm:py-8">
@@ -71,7 +74,17 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/dashboard/team">
+              <Button
+                variant="outline"
+                size="sm"
+                title="Team"
+              >
+                <UserPlus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Team</span>
+              </Button>
+            </Link>
             <Link href="/dashboard/contact-lists">
               <Button
                 variant="outline"
@@ -79,7 +92,17 @@ export default function DashboardPage() {
                 title="Contact Lists"
               >
                 <Users className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Contact Lists</span>
+                <span className="hidden sm:inline">Contacts</span>
+              </Button>
+            </Link>
+            <Link href="/dashboard/settings">
+              <Button
+                variant="outline"
+                size="sm"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Settings</span>
               </Button>
             </Link>
             <Button
@@ -90,13 +113,15 @@ export default function DashboardPage() {
               <RefreshCw className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Button
-              onClick={() => setShowForm(!showForm)}
-              size="sm"
-            >
-              <Plus className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">Add Monitor</span>
-            </Button>
+            {canManage && (
+              <Button
+                onClick={() => setShowForm(!showForm)}
+                size="sm"
+              >
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Monitor</span>
+              </Button>
+            )}
             <Button
               onClick={() => signOut({ callbackUrl: '/' })}
               variant="outline"
@@ -139,7 +164,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {showForm && (
+        {showForm && canManage && (
           <Card className="mb-8">
             <CardHeader>
               <CardTitle>Create New Monitor</CardTitle>
@@ -164,12 +189,16 @@ export default function DashboardPage() {
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-gray-600 dark:text-gray-400 mb-4">
-                No monitors yet. Create your first monitor to get started!
+                {canManage
+                  ? 'No monitors yet. Create your first monitor to get started!'
+                  : 'No monitors yet. Ask an admin to create monitors.'}
               </p>
-              <Button onClick={() => setShowForm(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Monitor
-              </Button>
+              {canManage && (
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Monitor
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -180,6 +209,7 @@ export default function DashboardPage() {
                 monitor={monitor}
                 onDelete={handleMonitorDeleted}
                 onUpdate={handleMonitorUpdated}
+                canManage={canManage}
               />
             ))}
           </div>

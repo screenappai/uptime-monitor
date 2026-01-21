@@ -1,17 +1,7 @@
-import mongoose from 'mongoose'
+import mongoose, { Schema, Model } from 'mongoose'
+import { ContactList } from '@/types'
 
-export interface IContactList {
-  _id: string
-  name: string
-  description?: string
-  emails: string[]
-  phones: string[]
-  webhooks: string[]
-  createdAt: Date
-  updatedAt: Date
-}
-
-const ContactListSchema = new mongoose.Schema(
+const ContactListSchema = new Schema(
   {
     name: {
       type: String,
@@ -34,10 +24,21 @@ const ContactListSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+      index: true,
+    },
   },
   {
     timestamps: true,
   }
 )
 
-export default mongoose.models.ContactList || mongoose.model<IContactList>('ContactList', ContactListSchema)
+ContactListSchema.index({ organizationId: 1, createdAt: -1 })
+
+const ContactListModel: Model<ContactList> =
+  mongoose.models.ContactList || mongoose.model<ContactList>('ContactList', ContactListSchema)
+
+export default ContactListModel

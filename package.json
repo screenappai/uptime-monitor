@@ -1,6 +1,6 @@
 {
   "name": "uptime-monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Open-source uptime monitoring system built with Next.js",
   "private": false,
   "scripts": {
@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start -p 3200",
     "lint": "next lint",
+    "migrate": "tsx scripts/migrate-to-multi-tenant.ts",
     "deploy:lambda": "dotenv -e .env.lambda -- serverless deploy --stage production --force",
     "deploy:lambda:dev": "serverless deploy --stage dev",
     "deploy:lambda:function": "serverless deploy function -f --force",
@@ -57,6 +58,7 @@
     "serverless-esbuild": "^1.56.1",
     "serverless-offline": "^13.3.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   },
   "keywords": [

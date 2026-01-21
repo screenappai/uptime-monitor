@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import ContactList from '@/models/ContactList'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import ContactListModel from '@/models/ContactList'
+import OrganizationModel from '@/models/Organization'
+import { requireUniversalAuth, getOrganizationFilter, requireRole } from '@/lib/auth-helpers'
 import { z } from 'zod'
 
 const ContactListSchema = z.object({
@@ -13,15 +13,16 @@ const ContactListSchema = z.object({
   webhooks: z.array(z.string().url('Invalid webhook URL')).default([]),
 })
 
-export async function GET() {
+// GET /api/contact-lists - List contact lists for current organization
+export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
 
     await connectDB()
-    const contactLists = await ContactList.find({}).sort({ createdAt: -1 })
+
+    const contactLists = await ContactListModel.find(getOrganizationFilter(user!))
+      .sort({ createdAt: -1 })
 
     return NextResponse.json({
       success: true,
@@ -36,23 +37,43 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+// POST /api/contact-lists - Create a new contact list in current organization
+export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can create contact lists
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
 
     const body = await request.json()
     const validatedData = ContactListSchema.parse(body)
 
     await connectDB()
-    const contactList = await ContactList.create(validatedData)
+
+    // Check organization limits
+    const organization = await OrganizationModel.findById(user!.organizationId)
+    const contactListCount = await ContactListModel.countDocuments(
+      getOrganizationFilter(user!)
+    )
+
+    if (contactListCount >= (organization?.settings.maxContactLists || 3)) {
+      return NextResponse.json(
+        { success: false, error: 'Contact list limit reached for your plan' },
+        { status: 403 }
+      )
+    }
+
+    const contactList = await ContactListModel.create({
+      ...validatedData,
+      organizationId: user!.organizationId,
+    })
 
     return NextResponse.json({
       success: true,
       data: contactList,
-    })
+    }, { status: 201 })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

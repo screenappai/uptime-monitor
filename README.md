@@ -131,8 +131,11 @@ That's it! 🎉 This single command starts:
 - ✅ MongoDB database
 - ✅ Next.js application with hot reload
 - ✅ Background monitoring service
+- ✅ Mailpit (local email testing)
 
-**Access:** http://localhost:3200
+**Access:**
+- App: http://localhost:3200
+- Mailpit (view emails): http://localhost:8027
 
 **Why Docker Compose?**
 - 📦 No need to install MongoDB separately

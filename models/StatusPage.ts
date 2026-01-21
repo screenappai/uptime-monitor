@@ -1,14 +1,19 @@
 import mongoose, { Schema, Model } from 'mongoose'
 import { StatusPage } from '@/types'
 
-const StatusPageSchema = new Schema<StatusPage>(
+const StatusPageSchema = new Schema(
   {
     slug: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       lowercase: true,
+    },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+      index: true,
     },
     title: {
       type: String,
@@ -42,8 +47,8 @@ const StatusPageSchema = new Schema<StatusPage>(
   }
 )
 
-// Note: slug index already created via unique: true in schema
-// No need for explicit index here
+// Unique slug per organization
+StatusPageSchema.index({ organizationId: 1, slug: 1 }, { unique: true })
 
 const StatusPageModel: Model<StatusPage> =
   mongoose.models.StatusPage ||

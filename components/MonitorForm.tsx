@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Monitor } from '@/types'
-import { IContactList } from '@/models/ContactList'
+import { ContactList } from '@/types'
 
 interface MonitorFormProps {
   monitor?: Monitor
@@ -23,7 +23,7 @@ export default function MonitorForm({ monitor, onSuccess, onCancel }: MonitorFor
     webhook: monitor?.alerts?.webhook?.join(', ') || '',
     phone: monitor?.alerts?.phone?.join(', ') || '',
   })
-  const [contactLists, setContactLists] = useState<IContactList[]>([])
+  const [contactLists, setContactLists] = useState<ContactList[]>([])
   const [selectedContactLists, setSelectedContactLists] = useState<string[]>(monitor?.contactLists || [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -245,8 +245,8 @@ export default function MonitorForm({ monitor, onSuccess, onCancel }: MonitorFor
                   <input
                     type="checkbox"
                     id={`contact-list-${list._id}`}
-                    checked={selectedContactLists.includes(list._id)}
-                    onChange={() => handleContactListToggle(list._id)}
+                    checked={list._id ? selectedContactLists.includes(list._id) : false}
+                    onChange={() => list._id && handleContactListToggle(list._id)}
                     className="mt-1"
                   />
                   <label

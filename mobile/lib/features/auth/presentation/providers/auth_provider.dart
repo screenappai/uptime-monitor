@@ -58,13 +58,53 @@ class AuthNotifier extends StateNotifier<AuthState> {
         userName: userName,
       );
     } else {
-      state = state.copyWith(
-        isLoading: false,
-        error: 'Invalid credentials',
-      );
+      state = state.copyWith(isLoading: false, error: 'Invalid credentials');
     }
 
     return success;
+  }
+
+  Future<Map<String, dynamic>> sendOTP(String email) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.sendOTP(email);
+
+    if (!result['success']) {
+      state = state.copyWith(isLoading: false, error: result['error']);
+    } else {
+      state = state.copyWith(isLoading: false);
+    }
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>> verifyOTP({
+    required String email,
+    required String code,
+    String? name,
+    String? organizationName,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    final result = await _repository.verifyOTP(
+      email: email,
+      code: code,
+      name: name,
+      organizationName: organizationName,
+    );
+
+    if (result['success']) {
+      final userName = await _repository.getUserName();
+      state = state.copyWith(
+        isAuthenticated: true,
+        isLoading: false,
+        userName: userName,
+      );
+    } else {
+      state = state.copyWith(isLoading: false, error: result['error']);
+    }
+
+    return result;
   }
 
   Future<void> logout() async {

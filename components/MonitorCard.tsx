@@ -9,21 +9,22 @@ import { Trash2, Play, Pause, RefreshCw, BarChart3, Edit, ChevronDown, ChevronUp
 import Link from 'next/link'
 import { formatDuration } from '@/lib/utils'
 import MonitorForm from './MonitorForm'
-import { IContactList } from '@/models/ContactList'
+import { ContactList } from '@/types'
 
 interface MonitorCardProps {
   monitor: Monitor
   onDelete: () => void
   onUpdate?: () => void
+  canManage?: boolean
 }
 
-export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCardProps) {
+export default function MonitorCard({ monitor, onDelete, onUpdate, canManage = true }: MonitorCardProps) {
   const [stats, setStats] = useState<any>(null)
   const [checking, setChecking] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const [contactLists, setContactLists] = useState<IContactList[]>([])
+  const [contactLists, setContactLists] = useState<ContactList[]>([])
 
   useEffect(() => {
     fetchStats()
@@ -37,8 +38,8 @@ export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCard
       const response = await fetch('/api/contact-lists')
       const result = await response.json()
       if (result.success) {
-        const attachedLists = result.data.filter((list: IContactList) =>
-          monitor.contactLists?.includes(list._id)
+        const attachedLists = result.data.filter((list: ContactList) =>
+          list._id && monitor.contactLists?.includes(list._id)
         )
         setContactLists(attachedLists)
       }
@@ -177,41 +178,45 @@ export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCard
           </div>
 
           <div className="flex gap-1.5 sm:gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleCheck}
-              disabled={checking}
-              title="Check now"
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${checking ? 'animate-spin' : ''}`} />
-            </Button>
+            {canManage && (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCheck}
+                  disabled={checking}
+                  title="Check now"
+                  className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${checking ? 'animate-spin' : ''}`} />
+                </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleTogglePause}
-              disabled={updating}
-              title={monitor.status === 'paused' ? 'Resume' : 'Pause'}
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              {monitor.status === 'paused' ? (
-                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              ) : (
-                <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              )}
-            </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleTogglePause}
+                  disabled={updating}
+                  title={monitor.status === 'paused' ? 'Resume' : 'Pause'}
+                  className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                >
+                  {monitor.status === 'paused' ? (
+                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  ) : (
+                    <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  )}
+                </Button>
 
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsEditing(true)}
-              title="Edit"
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setIsEditing(true)}
+                  title="Edit"
+                  className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                >
+                  <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                </Button>
+              </>
+            )}
 
             <Link href={`/dashboard/monitors/${monitor._id}`}>
               <Button size="sm" variant="outline" title="View details" className="h-8 w-8 p-0 sm:h-9 sm:w-9">
@@ -219,15 +224,17 @@ export default function MonitorCard({ monitor, onDelete, onUpdate }: MonitorCard
               </Button>
             </Link>
 
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleDelete}
-              title="Delete"
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
+            {canManage && (
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDelete}
+                title="Delete"
+                className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>

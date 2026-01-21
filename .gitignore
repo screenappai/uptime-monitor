@@ -45,6 +45,13 @@ mobile/ios/Pods/
 mobile/android/app/google-services.json
 mobile/ios/Runner/GoogleService-Info.plist
 
+# Android signing keys and local config (SECURITY: Never commit!)
+mobile/android/key.properties
+mobile/android/local.properties
+mobile/android/*.jks
+mobile/android/*.keystore
+mobile/android/upload-keystore.jks
+
 # Relay (Firebase Functions)
 relay/.firebase/
 relay/.firebaserc

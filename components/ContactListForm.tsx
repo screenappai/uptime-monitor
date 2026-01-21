@@ -6,10 +6,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { X } from 'lucide-react'
-import { IContactList } from '@/models/ContactList'
+import { ContactList } from '@/types'
 
 interface ContactListFormProps {
-  contactList?: IContactList
+  contactList?: ContactList
   onSuccess: () => void
   onCancel: () => void
 }

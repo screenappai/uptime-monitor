@@ -5,16 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Trash2, Edit, ChevronDown, ChevronUp } from 'lucide-react'
-import { IContactList } from '@/models/ContactList'
+import { ContactList } from '@/types'
 import ContactListForm from './ContactListForm'
 
 interface ContactListCardProps {
-  contactList: IContactList
+  contactList: ContactList
   onDelete: () => void
   onUpdate: () => void
+  canManage?: boolean
 }
 
-export default function ContactListCard({ contactList, onDelete, onUpdate }: ContactListCardProps) {
+export default function ContactListCard({ contactList, onDelete, onUpdate, canManage = true }: ContactListCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [expanded, setExpanded] = useState(false)
 
@@ -76,27 +77,29 @@ export default function ContactListCard({ contactList, onDelete, onUpdate }: Con
             )}
           </div>
 
-          <div className="flex gap-1.5 sm:gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => setIsEditing(true)}
-              title="Edit"
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
+          {canManage && (
+            <div className="flex gap-1.5 sm:gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setIsEditing(true)}
+                title="Edit"
+                className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+              >
+                <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </Button>
 
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={handleDelete}
-              title="Delete"
-              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-            >
-              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </Button>
-          </div>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={handleDelete}
+                title="Delete"
+                className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+              >
+                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
 

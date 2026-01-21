@@ -1,7 +1,7 @@
 import mongoose, { Schema, Model } from 'mongoose'
 import { Monitor } from '@/types'
 
-const MonitorSchema = new Schema<Monitor>(
+const MonitorSchema = new Schema(
   {
     name: {
       type: String,
@@ -12,6 +12,12 @@ const MonitorSchema = new Schema<Monitor>(
       type: String,
       required: true,
       trim: true,
+    },
+    organizationId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Organization',
+      required: true,
+      index: true,
     },
     type: {
       type: String,
@@ -55,6 +61,7 @@ const MonitorSchema = new Schema<Monitor>(
 // Create indexes for better query performance
 MonitorSchema.index({ status: 1 })
 MonitorSchema.index({ createdAt: -1 })
+MonitorSchema.index({ organizationId: 1, createdAt: -1 })
 
 const MonitorModel: Model<Monitor> =
   mongoose.models.Monitor || mongoose.model<Monitor>('Monitor', MonitorSchema)

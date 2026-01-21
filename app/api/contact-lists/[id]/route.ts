@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
-import ContactList from '@/models/ContactList'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import ContactListModel from '@/models/ContactList'
+import { requireUniversalAuth, getOrganizationFilter, requireRole } from '@/lib/auth-helpers'
 import { z } from 'zod'
+import mongoose from 'mongoose'
 
 const ContactListUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required').trim().optional(),
@@ -13,19 +13,22 @@ const ContactListUpdateSchema = z.object({
   webhooks: z.array(z.string().url('Invalid webhook URL')).optional(),
 })
 
+// GET /api/contact-lists/[id] - Get a specific contact list (scoped to organization)
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
 
     const { id } = await params
     await connectDB()
-    const contactList = await ContactList.findById(id)
+
+    const contactList = await ContactListModel.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
 
     if (!contactList) {
       return NextResponse.json(
@@ -47,23 +50,30 @@ export async function GET(
   }
 }
 
+// PUT /api/contact-lists/[id] - Update a contact list (scoped to organization)
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can update contact lists
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
 
     const { id } = await params
     const body = await request.json()
     const validatedData = ContactListUpdateSchema.parse(body)
 
     await connectDB()
-    const contactList = await ContactList.findByIdAndUpdate(
-      id,
+
+    const contactList = await ContactListModel.findOneAndUpdate(
+      {
+        _id: new mongoose.Types.ObjectId(id),
+        ...getOrganizationFilter(user!),
+      },
       validatedData,
       { new: true, runValidators: true }
     )
@@ -95,19 +105,26 @@ export async function PUT(
   }
 }
 
+// DELETE /api/contact-lists/[id] - Delete a contact list (scoped to organization)
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can delete contact lists
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
 
     const { id } = await params
     await connectDB()
-    const contactList = await ContactList.findByIdAndDelete(id)
+
+    const contactList = await ContactListModel.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
 
     if (!contactList) {
       return NextResponse.json(

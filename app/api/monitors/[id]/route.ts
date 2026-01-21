@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db'
 import MonitorModel from '@/models/Monitor'
+import { requireUniversalAuth, getOrganizationFilter, requireRole } from '@/lib/auth-helpers'
 import { z } from 'zod'
+import mongoose from 'mongoose'
 
 const updateMonitorSchema = z.object({
   name: z.string().min(1).optional(),
@@ -18,15 +20,22 @@ const updateMonitorSchema = z.object({
   }).optional(),
 })
 
-// GET /api/monitors/[id] - Get a specific monitor
+// GET /api/monitors/[id] - Get a specific monitor (scoped to organization)
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
     const { id } = await params
     await connectDB()
-    const monitor = await MonitorModel.findById(id)
+
+    const monitor = await MonitorModel.findOne({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
 
     if (!monitor) {
       return NextResponse.json(
@@ -48,20 +57,30 @@ export async function GET(
   }
 }
 
-// PUT /api/monitors/[id] - Update a monitor
+// PUT /api/monitors/[id] - Update a monitor (scoped to organization)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can update monitors
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
+
     const { id } = await params
     const body = await request.json()
     const validatedData = updateMonitorSchema.parse(body)
 
     await connectDB()
 
-    const monitor = await MonitorModel.findByIdAndUpdate(
-      id,
+    const monitor = await MonitorModel.findOneAndUpdate(
+      {
+        _id: new mongoose.Types.ObjectId(id),
+        ...getOrganizationFilter(user!),
+      },
       { $set: validatedData },
       { new: true, runValidators: true }
     )
@@ -93,16 +112,26 @@ export async function PUT(
   }
 }
 
-// DELETE /api/monitors/[id] - Delete a monitor
+// DELETE /api/monitors/[id] - Delete a monitor (scoped to organization)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { error, user } = await requireUniversalAuth(request)
+    if (error) return error
+
+    // Only owners and admins can delete monitors
+    const roleError = requireRole(user!, ['owner', 'admin'])
+    if (roleError) return roleError
+
     const { id } = await params
     await connectDB()
 
-    const monitor = await MonitorModel.findByIdAndDelete(id)
+    const monitor = await MonitorModel.findOneAndDelete({
+      _id: new mongoose.Types.ObjectId(id),
+      ...getOrganizationFilter(user!),
+    })
 
     if (!monitor) {
       return NextResponse.json(

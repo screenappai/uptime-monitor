@@ -12,7 +12,7 @@ export interface MonitorCheckResult {
 
 export function getRetryConfig(): RetryConfig {
   return {
-    retryCount: parseInt(process.env.RETRY_COUNT || '3', 10),
+    retryCount: parseInt(process.env.RETRY_COUNT || '1', 10),
     initialDelay: parseInt(process.env.RETRY_INITIAL_DELAY || '1000', 10),
     multiplier: parseFloat(process.env.RETRY_MULTIPLIER || '2'),
     maxDelay: parseInt(process.env.RETRY_MAX_DELAY || '5000', 10),
@@ -185,36 +185,19 @@ async function expandContactLists(
 }
 
 /**
- * Main function to run monitor checks for all active monitors
- * This can be called from a cron job, API route, or scheduled task
+ * Process monitors in batches to avoid overwhelming the system
  */
-export async function runMonitorChecks() {
-  const { connectDB } = await import('./db')
-  const Monitor = (await import('@/models/Monitor')).default
-  const MonitorCheck = (await import('@/models/MonitorCheck')).default
-  const { sendEmailAlert } = await import('./notifications')
-  const { sendTwilioCall } = await import('./twilio')
-
-  try {
-    await connectDB()
-
-    // Get all active monitors (not paused)
-    const monitors = await Monitor.find({
-      status: { $in: ['up', 'down'] },
-    })
-
-    console.log(`Checking ${monitors.length} active monitors...`)
-
-    const startTime = Date.now()
-    const MAX_EXECUTION_TIME = 55000 // 55 seconds safety margin
-
-    for (const monitor of monitors) {
-      // Check if we're approaching timeout limit
-      if (Date.now() - startTime > MAX_EXECUTION_TIME) {
-        console.log('Approaching timeout limit, stopping checks')
-        break
-      }
-
+async function processBatch(
+  monitors: any[],
+  Monitor: any,
+  MonitorCheck: any,
+  sendEmailAlert: any,
+  sendTwilioCall: any,
+  orgId: string,
+  batchNumber: number
+) {
+  const results = await Promise.allSettled(
+    monitors.map(async (monitor) => {
       try {
         const now = new Date()
         const lastCheck = monitor.lastCheck ? new Date(monitor.lastCheck) : new Date(0)
@@ -222,7 +205,7 @@ export async function runMonitorChecks() {
 
         // Only check if enough time has passed since last check
         if (timeSinceLastCheck >= monitor.interval) {
-          console.log(`Checking monitor: ${monitor.name} (${monitor.url})`)
+          console.log(`[Org:${orgId}][Batch:${batchNumber}] Checking monitor: ${monitor.name} (${monitor.url})`)
 
           const checkResult = await checkEndpointWithRetry(
             monitor.url,
@@ -232,7 +215,7 @@ export async function runMonitorChecks() {
           // Log retry information
           if (checkResult.attemptNumber && checkResult.attemptNumber > 1) {
             console.log(
-              `Monitor ${monitor.name}: ${checkResult.success ? 'Succeeded' : 'Failed'} ` +
+              `[Org:${orgId}][Batch:${batchNumber}] Monitor ${monitor.name}: ${checkResult.success ? 'Succeeded' : 'Failed'} ` +
               `after ${checkResult.attemptNumber} attempts`
             )
           }
@@ -257,11 +240,11 @@ export async function runMonitorChecks() {
             lastCheck: now,
           })
 
-          console.log(`Monitor ${monitor.name}: ${newStatus} (${checkResult.responseTime}ms)`)
+          console.log(`[Org:${orgId}][Batch:${batchNumber}] Monitor ${monitor.name}: ${newStatus} (${checkResult.responseTime}ms)`)
 
           // Send alerts if status changed from up to down
           if (previousStatus === 'up' && newStatus === 'down') {
-            console.log(`Sending alerts for ${monitor.name}`)
+            console.log(`[Org:${orgId}][Batch:${batchNumber}] Sending alerts for ${monitor.name}`)
 
             // Expand contact lists and merge with direct alerts
             const expandedContacts = await expandContactLists(monitor.contactLists, monitor.alerts)
@@ -276,9 +259,9 @@ export async function runMonitorChecks() {
                     checkResult.error || 'Unknown error',
                     email
                   )
-                  console.log(`Alert email sent to ${email}`)
+                  console.log(`[Org:${orgId}][Batch:${batchNumber}] Alert email sent to ${email}`)
                 } catch (error) {
-                  console.error(`Failed to send email to ${email}:`, error)
+                  console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send email to ${email}:`, error)
                 }
               }
             }
@@ -294,9 +277,9 @@ export async function runMonitorChecks() {
                     monitor.url,
                     checkResult.error || 'Unknown error'
                   )
-                  console.log(`Webhook alert sent to ${webhookUrl}`)
+                  console.log(`[Org:${orgId}][Batch:${batchNumber}] Webhook alert sent to ${webhookUrl}`)
                 } catch (error) {
-                  console.error(`Failed to send webhook to ${webhookUrl}:`, error)
+                  console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send webhook to ${webhookUrl}:`, error)
                 }
               }
             }
@@ -311,31 +294,32 @@ export async function runMonitorChecks() {
                     url: monitor.url,
                     status: 'down',
                   })
-                  console.log(`Twilio call alert sent to ${phoneNumber}`)
+                  console.log(`[Org:${orgId}][Batch:${batchNumber}] Twilio call alert sent to ${phoneNumber}`)
                 } catch (error) {
-                  console.error(`Failed to send Twilio call to ${phoneNumber}:`, error)
+                  console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send Twilio call to ${phoneNumber}:`, error)
                 }
               }
             }
 
-            // Send FCM push notifications
+            // Send FCM push notifications (scoped to organization)
             try {
               const { sendMonitorDownPush } = await import('./fcm')
               await sendMonitorDownPush(
                 monitor._id.toString(),
                 monitor.name,
                 monitor.url,
-                checkResult.error || 'Unknown error'
+                checkResult.error || 'Unknown error',
+                monitor.organizationId?.toString()
               )
-              console.log(`FCM push notification sent for ${monitor.name} going DOWN`)
+              console.log(`[Org:${orgId}][Batch:${batchNumber}] FCM push notification sent for ${monitor.name} going DOWN`)
             } catch (error) {
-              console.error('Failed to send FCM push notification:', error)
+              console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send FCM push notification:`, error)
             }
           }
 
           // Send recovery alerts if status changed from down to up
           if (previousStatus === 'down' && newStatus === 'up') {
-            console.log(`Sending recovery notifications for ${monitor.name}`)
+            console.log(`[Org:${orgId}][Batch:${batchNumber}] Sending recovery notifications for ${monitor.name}`)
 
             // Expand contact lists for recovery emails
             const expandedContacts = await expandContactLists(monitor.contactLists, monitor.alerts)
@@ -346,31 +330,107 @@ export async function runMonitorChecks() {
               for (const email of expandedContacts.emails) {
                 try {
                   await sendRecoveryNotification(monitor.name, monitor.url, email)
-                  console.log(`Recovery email sent to ${email}`)
+                  console.log(`[Org:${orgId}][Batch:${batchNumber}] Recovery email sent to ${email}`)
                 } catch (error) {
-                  console.error(`Failed to send recovery email to ${email}:`, error)
+                  console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send recovery email to ${email}:`, error)
                 }
               }
             }
 
-            // Send FCM recovery push notifications
+            // Send FCM recovery push notifications (scoped to organization)
             try {
               const { sendMonitorRecoveryPush } = await import('./fcm')
-              await sendMonitorRecoveryPush(monitor._id.toString(), monitor.name, monitor.url)
-              console.log(`FCM recovery push notification sent for ${monitor.name} going UP`)
+              await sendMonitorRecoveryPush(
+                monitor._id.toString(),
+                monitor.name,
+                monitor.url,
+                monitor.organizationId?.toString()
+              )
+              console.log(`[Org:${orgId}][Batch:${batchNumber}] FCM recovery push notification sent for ${monitor.name} going UP`)
             } catch (error) {
-              console.error('Failed to send FCM recovery push notification:', error)
+              console.error(`[Org:${orgId}][Batch:${batchNumber}] Failed to send FCM recovery push notification:`, error)
             }
           }
         }
+        return { success: true, monitorName: monitor.name }
       } catch (error) {
-        console.error(`Error checking monitor ${monitor.name}:`, error)
-        // Continue with next monitor even if this one fails
+        console.error(`[Org:${orgId}][Batch:${batchNumber}] Error checking monitor ${monitor.name}:`, error)
+        return { success: false, monitorName: monitor.name, error }
+      }
+    })
+  )
+
+  return results
+}
+
+/**
+ * Main function to run monitor checks for all active monitors
+ * This can be called from a cron job, API route, or scheduled task
+ */
+export async function runMonitorChecks() {
+  const { connectDB } = await import('./db')
+  const Monitor = (await import('@/models/Monitor')).default
+  const MonitorCheck = (await import('@/models/MonitorCheck')).default
+  const { sendEmailAlert } = await import('./notifications')
+  const { sendTwilioCall } = await import('./twilio')
+
+  try {
+    await connectDB()
+
+    // Get all active monitors (not paused)
+    const monitors = await Monitor.find({
+      status: { $in: ['up', 'down'] },
+    })
+
+    console.log(`Checking ${monitors.length} active monitors...`)
+
+    const startTime = Date.now()
+    const MAX_EXECUTION_TIME = 55000 // 55 seconds safety margin
+    const BATCH_SIZE = parseInt(process.env.MONITOR_BATCH_SIZE || '10', 10)
+
+    // Group monitors by organization
+    const monitorsByOrg = new Map<string, any[]>()
+    for (const monitor of monitors) {
+      const orgId = monitor.organizationId?.toString() || 'unknown'
+      if (!monitorsByOrg.has(orgId)) {
+        monitorsByOrg.set(orgId, [])
+      }
+      monitorsByOrg.get(orgId)!.push(monitor)
+    }
+
+    console.log(`Monitors grouped into ${monitorsByOrg.size} organizations`)
+
+    // Create all batch promises upfront for parallel execution
+    const batchPromises: Promise<any>[] = []
+    let totalMonitors = 0
+
+    for (const [orgId, orgMonitors] of monitorsByOrg) {
+      console.log(`Organization ${orgId}: ${orgMonitors.length} monitors`)
+
+      // Create batches for this organization
+      for (let i = 0; i < orgMonitors.length; i += BATCH_SIZE) {
+        const batch = orgMonitors.slice(i, i + BATCH_SIZE)
+        const batchNumber = Math.floor(i / BATCH_SIZE) + 1
+        
+        console.log(`[Org:${orgId}][Batch:${batchNumber}] Queued ${batch.length} monitors`)
+
+        // Add batch promise to the array (don't await yet)
+        batchPromises.push(
+          processBatch(batch, Monitor, MonitorCheck, sendEmailAlert, sendTwilioCall, orgId, batchNumber)
+        )
+        
+        totalMonitors += batch.length
       }
     }
 
-    console.log('Monitor check cycle completed')
-    return { success: true, monitorsChecked: monitors.length }
+    console.log(`Starting parallel execution of ${batchPromises.length} batches across all organizations...`)
+
+    // Execute all batches in parallel
+    await Promise.allSettled(batchPromises)
+
+    const executionTime = Date.now() - startTime
+    console.log(`Monitor check cycle completed: ${totalMonitors} monitors processed in ${executionTime}ms (${batchPromises.length} batches)`)
+    return { success: true, monitorsChecked: totalMonitors, executionTime, batchesProcessed: batchPromises.length }
   } catch (error) {
     console.error('Error running monitor checks:', error)
     throw error

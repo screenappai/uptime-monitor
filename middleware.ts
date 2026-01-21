@@ -13,6 +13,11 @@ export default withAuth(
       authorized: ({ token, req }) => {
         const path = req.nextUrl.pathname
 
+        // Public OTP auth endpoints
+        if (path === '/api/auth/send-otp' || path === '/api/auth/verify-otp') {
+          return true
+        }
+
         // Public status page API - allow GET requests without auth
         if (path.startsWith('/api/status-pages/') && req.method === 'GET') {
           // Check if it's a slug-based public access (not management endpoints)
@@ -43,5 +48,7 @@ export const config = {
     '/api/monitors/:path*',
     '/api/status-pages/:path*',
     '/api/devices/:path*',
+    '/api/organization/:path*',
+    '/api/contact-lists/:path*',
   ],
 }

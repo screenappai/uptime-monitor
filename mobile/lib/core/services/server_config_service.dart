@@ -2,9 +2,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ServerConfigService {
   static const String _serverUrlKey = 'server_url';
+  static const String _defaultServerUrl = 'https://uptimemonitor.screenapp.io';
 
   static ServerConfigService? _instance;
-  static ServerConfigService get instance => _instance ??= ServerConfigService._();
+  static ServerConfigService get instance =>
+      _instance ??= ServerConfigService._();
 
   ServerConfigService._();
 
@@ -16,7 +18,9 @@ class ServerConfigService {
 
   Future<String?> getServerUrl() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_serverUrlKey);
+    final url = prefs.getString(_serverUrlKey);
+    // Return default URL if no custom URL is set
+    return url ?? _defaultServerUrl;
   }
 
   Future<void> setServerUrl(String url) async {
@@ -34,7 +38,9 @@ class ServerConfigService {
   bool isValidUrl(String url) {
     try {
       final uri = Uri.parse(url);
-      return uri.hasScheme && (uri.scheme == 'http' || uri.scheme == 'https') && uri.host.isNotEmpty;
+      return uri.hasScheme &&
+          (uri.scheme == 'http' || uri.scheme == 'https') &&
+          uri.host.isNotEmpty;
     } catch (e) {
       return false;
     }

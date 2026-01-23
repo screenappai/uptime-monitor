@@ -173,12 +173,12 @@ class _OverviewTab extends StatelessWidget {
                   _DetailRow(
                     label: 'Last Check',
                     value: monitor.lastCheck != null
-                        ? DateFormat('MMM d, yyyy HH:mm:ss').format(monitor.lastCheck!)
+                        ? DateFormat('MMM d, yyyy HH:mm:ss').format(monitor.lastCheck!.toLocal())
                         : 'Never',
                   ),
                   _DetailRow(
                     label: 'Created',
-                    value: DateFormat('MMM d, yyyy').format(monitor.createdAt),
+                    value: DateFormat('MMM d, yyyy').format(monitor.createdAt.toLocal()),
                   ),
                 ],
               ),
@@ -543,7 +543,7 @@ class _HistoryTabWithFilter extends StatelessWidget {
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                       subtitle: Text(
-                        DateFormat('MMM d, HH:mm:ss').format(check.timestamp),
+                        DateFormat('MMM d, HH:mm:ss').format(check.timestamp.toLocal()),
                         style: TextStyle(color: Colors.grey[600]),
                       ),
                       trailing: check.error != null

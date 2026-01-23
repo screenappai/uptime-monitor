@@ -24,6 +24,9 @@ This project consists of three main components:
 
 - **HTTP/HTTPS Monitoring** - Monitor any HTTP or HTTPS endpoint with customizable check intervals
 - **Real-time Alerts** - Get notified via email, webhooks, or phone calls when your services go down
+- **Multi-Tenant Support** - Run in single-tenant (private) or multi-tenant (SaaS) mode
+- **Passwordless Authentication** - Secure email OTP login with 30-day sessions
+- **Team Management** - Invite users with role-based access control (owner, admin, member)
 - **Mobile App** - Native Flutter app for Android/iOS with push notifications ([Download on Google Play](https://play.google.com/store/apps/details?id=io.screenapp.uptime_monitor_mobile))
 - **Public Status Pages** - Create beautiful, branded status pages for your services
 - **Historical Analytics** - Track uptime percentages and response times over 24h, 7d, and 30d periods
@@ -183,10 +186,13 @@ NEXT_PUBLIC_APP_URL=http://localhost:3200
 # Authentication Configuration
 NEXTAUTH_URL=http://localhost:3200
 NEXTAUTH_SECRET=your-random-secret-key-here-change-this-in-production
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=your-secure-password-here
 
-# Email Configuration (for alerts)
+# Multi-Tenant Mode
+# false = Single-tenant: Only invited users can join (default, recommended for private deployments)
+# true = Multi-tenant: Each user can create their own organization (for SaaS)
+MULTI_TENANT=false
+
+# Email Configuration (for OTP authentication and alerts)
 EMAIL_HOST=smtp.gmail.com
 EMAIL_PORT=587
 EMAIL_USER=your-email@gmail.com
@@ -199,11 +205,8 @@ TWILIO_AUTH_TOKEN=your-twilio-auth-token
 TWILIO_PHONE_NUMBER=+1234567890
 
 # Monitoring Configuration
-MONITOR_INTERVAL_SECONDS=60
-MONITOR_TIMEOUT_SECONDS=30
-
-# Optional: API Key
-API_SECRET_KEY=your-secret-key-here
+RETRY_COUNT=1
+MONITOR_BATCH_SIZE=10
 ```
 
 5. Start the development server:
@@ -234,46 +237,86 @@ Create a cron job that calls your API endpoint:
 
 ## Authentication Setup
 
-The application uses NextAuth.js for authentication to protect the dashboard and management APIs.
+The application uses passwordless OTP (One-Time Password) authentication via email for both web and mobile access.
 
-### Quick Setup
+### Configuration
 
-1. **Generate NextAuth Secret**:
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-Copy the output and set it as `NEXTAUTH_SECRET` in your `.env` file.
+**Multi-Tenant Mode:**
 
-2. **Set Admin Credentials**:
-
-**Option A: Plain Text (Quick Setup - Development Only)**
 ```env
-ADMIN_USERNAME=admin
-ADMIN_PASSWORD=mySecurePassword123
+# Single-tenant mode (default) - Only first user creates org, others need invitation
+MULTI_TENANT=false
+
+# Multi-tenant mode - Each user can create their own organization
+MULTI_TENANT=true
 ```
 
-**Option B: Hashed Password (Recommended for Production)**
-```bash
-node scripts/hash-password.js mySecurePassword123
-```
-Copy the generated hash and use it as `ADMIN_PASSWORD` in your `.env` file:
+**Single-Tenant Mode (Default - `MULTI_TENANT=false`):**
+- ✅ **First User:** Creates organization (becomes owner with 100 monitors, 20 contact lists, 50 members)
+- ✅ **Invited Users:** Join existing organization as admin/member
+- ❌ **Uninvited Users:** Receive "You are not invited" error
+- 🔒 Perfect for private/internal deployments where owner controls access
+
+**Multi-Tenant Mode (`MULTI_TENANT=true`):**
+- ✅ Anyone can create their own isolated organization
+- ✅ First organization gets generous limits (100 monitors)
+- ✅ Subsequent organizations get standard limits (5 monitors)
+- 🌐 Ideal for SaaS deployments with multiple teams/clients
+
+### First-Time Setup
+
+1. **Start the application** and navigate to `http://localhost:3200`
+
+2. **First User Registration:**
+   - Enter your email
+   - Receive 6-digit OTP code via email
+   - Enter your name
+   - Enter your organization name
+   - You become the **owner** with full access
+
+3. **Invite Team Members** (Optional):
+   - Go to Dashboard → Team
+   - Send invitations via email
+   - Invited users complete OTP registration and join your organization
+
+### Email Configuration
+
+Configure SMTP settings in `.env` for OTP delivery:
+
 ```env
-ADMIN_PASSWORD=$2b$10$... (the full hash)
+# For local development with Mailpit (Docker Compose):
+EMAIL_HOST=mailpit
+EMAIL_PORT=1025
+EMAIL_FROM=noreply@localhost
+
+# For production (Gmail example):
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+EMAIL_FROM=noreply@yourapp.com
 ```
+
+**Gmail Setup:**
+1. Enable 2-factor authentication in Google Account
+2. Generate App Password: [Google App Passwords](https://myaccount.google.com/apppasswords)
+3. Use App Password as `EMAIL_PASSWORD`
 
 ### Accessing the Dashboard
 
-1. Navigate to `http://localhost:3200`
-2. Click "Go to Dashboard"
-3. You'll be redirected to the login page at `/login`
-4. Enter your admin credentials
-5. After successful login, you'll access the dashboard
+1. Navigate to `http://localhost:3200/login`
+2. Enter your email address
+3. Check your email for the 6-digit OTP code
+4. Enter the OTP code (valid for 10 minutes)
+5. For new users: Complete registration with name and organization
+6. You're logged in! Sessions last 30 days (web) or until you logout
 
 ### Protected Routes
 
 - `/dashboard/*` - All dashboard pages (requires authentication)
 - `/api/monitors/*` - Monitor management APIs (requires authentication)
-- `/api/status-pages/*` - Status page management APIs (requires authentication)
+- `/api/organization/*` - Organization & team management (requires authentication)
+- `/api/contact-lists/*` - Contact list management (requires authentication)
 
 ### Public Routes
 
@@ -282,13 +325,29 @@ ADMIN_PASSWORD=$2b$10$... (the full hash)
 - `/status/[slug]` - Public status pages (public)
 - `/api/status-pages/[slug]` - Status page API for public viewing (GET only, public)
 
-### Security Best Practices
+### Security Features
 
-- Always use HTTPS in production (set `NEXTAUTH_URL` to your HTTPS domain)
-- Use strong passwords (minimum 12 characters with mixed case, numbers, and symbols)
-- Never commit `.env` file to version control
-- Use bcrypt hashed passwords in production
-- Rotate `NEXTAUTH_SECRET` periodically
+- ✅ Passwordless authentication (no password storage/leaks)
+- ✅ OTP rate limiting (max 3 requests per 10 minutes)
+- ✅ OTP expires in 10 minutes
+- ✅ Max 5 OTP verification attempts
+- ✅ 30-day JWT sessions with secure tokens
+- ✅ Organization-based data isolation
+- ✅ Role-based access control (owner, admin, member)
+
+### Migrating from Old Version
+
+If you're upgrading from the old single-tenant version with existing data:
+
+```bash
+# Set admin email in .env
+ADMIN_EMAIL=admin@example.com
+
+# Run migration script
+npm run migrate
+```
+
+This creates a default organization and assigns all existing monitors to it.
 
 ## Push Notifications Setup (Optional)
 

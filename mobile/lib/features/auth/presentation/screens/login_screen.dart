@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../notifications/services/fcm_service.dart';
+import '../../../monitors/presentation/providers/monitors_provider.dart';
 import '../../../../core/services/server_config_service.dart';
 
 enum LoginStep { email, otp, register }
@@ -91,6 +92,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (result['success'] && mounted) {
+      // Clear any cached monitors from previous user
+      ref.invalidate(monitorsProvider);
       await FCMService.instance.registerDeviceToken();
       context.go('/monitors');
     }
@@ -109,6 +112,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
 
     if (result['success'] && mounted) {
+      // Clear any cached monitors from previous user
+      ref.invalidate(monitorsProvider);
       await FCMService.instance.registerDeviceToken();
       context.go('/monitors');
     }

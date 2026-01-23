@@ -100,7 +100,7 @@ class MonitorCard extends StatelessWidget {
     } else if (difference.inDays < 1) {
       return '${difference.inHours}h ago';
     } else {
-      return DateFormat('MMM d, HH:mm').format(dateTime);
+      return DateFormat('MMM d, HH:mm').format(dateTime.toLocal());
     }
   }
 }

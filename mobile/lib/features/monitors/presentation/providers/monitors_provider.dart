@@ -9,26 +9,26 @@ final monitorsRepositoryProvider = Provider<MonitorsRepository>((ref) {
   return MonitorsRepository();
 });
 
-// Monitors list provider
-final monitorsProvider = FutureProvider<List<MonitorModel>>((ref) async {
+// Monitors list provider - autoDispose ensures fresh data when navigating back
+final monitorsProvider = FutureProvider.autoDispose<List<MonitorModel>>((ref) async {
   final repository = ref.watch(monitorsRepositoryProvider);
   return repository.getMonitors();
 });
 
 // Single monitor provider
-final monitorProvider = FutureProvider.family<MonitorModel, String>((ref, id) async {
+final monitorProvider = FutureProvider.autoDispose.family<MonitorModel, String>((ref, id) async {
   final repository = ref.watch(monitorsRepositoryProvider);
   return repository.getMonitor(id);
 });
 
 // Monitor stats provider
-final monitorStatsProvider = FutureProvider.family<MonitorStatsModel, String>((ref, id) async {
+final monitorStatsProvider = FutureProvider.autoDispose.family<MonitorStatsModel, String>((ref, id) async {
   final repository = ref.watch(monitorsRepositoryProvider);
   return repository.getMonitorStats(id);
 });
 
 // Monitor checks provider (basic - for backwards compatibility)
-final monitorChecksProvider = FutureProvider.family<List<MonitorCheckModel>, String>((ref, id) async {
+final monitorChecksProvider = FutureProvider.autoDispose.family<List<MonitorCheckModel>, String>((ref, id) async {
   final repository = ref.watch(monitorsRepositoryProvider);
   return repository.getMonitorChecks(id);
 });
@@ -70,7 +70,7 @@ class ChecksFilterParams {
 }
 
 // Filtered monitor checks provider
-final filteredMonitorChecksProvider = FutureProvider.family<List<MonitorCheckModel>, ChecksFilterParams>((ref, params) async {
+final filteredMonitorChecksProvider = FutureProvider.autoDispose.family<List<MonitorCheckModel>, ChecksFilterParams>((ref, params) async {
   final repository = ref.watch(monitorsRepositoryProvider);
   return repository.getMonitorChecks(
     params.monitorId,

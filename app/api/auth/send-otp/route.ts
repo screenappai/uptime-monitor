@@ -47,6 +47,37 @@ export async function POST(request: NextRequest) {
     // Check if user exists
     const existingUser = await UserModel.findOne({ email: normalizedEmail })
 
+    // In single-tenant mode, check if user has invitation or if they can create first org
+    if (!existingUser) {
+      const isMultiTenant = process.env.MULTI_TENANT === 'true'
+      
+      if (!isMultiTenant) {
+        // Check if any organization exists
+        const OrganizationModel = (await import('@/models/Organization')).default
+        const orgCount = await OrganizationModel.countDocuments()
+        
+        if (orgCount > 0) {
+          // Organization exists, check for pending invitation
+          const InvitationModel = (await import('@/models/Invitation')).default
+          const invitation = await InvitationModel.findOne({
+            email: normalizedEmail,
+            expiresAt: { $gt: new Date() },
+            acceptedAt: null,
+          })
+          
+          if (!invitation) {
+            return NextResponse.json(
+              { 
+                success: false, 
+                error: 'You are not invited. Please contact your administrator for an invitation.' 
+              },
+              { status: 403 }
+            )
+          }
+        }
+      }
+    }
+
     // Send OTP email
     await sendOTPEmail(normalizedEmail, otp, !!existingUser)
 

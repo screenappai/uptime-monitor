@@ -24,7 +24,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   LoginStep _currentStep = LoginStep.email;
   bool _isNewUser = false;
+  Map<String, dynamic>? _pendingInvitation;
   String? _serverUrl;
+
+  bool get _hasInvitation => _pendingInvitation != null;
 
   @override
   void initState() {
@@ -60,6 +63,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (result['success'] && mounted) {
       setState(() {
         _isNewUser = result['isNewUser'] ?? false;
+        _pendingInvitation = result['pendingInvitation'];
         _currentStep = LoginStep.otp;
       });
 
@@ -108,7 +112,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           email: _emailController.text.trim().toLowerCase(),
           code: _otpController.text.trim(),
           name: _nameController.text.trim(),
-          organizationName: _organizationController.text.trim(),
+          organizationName: _hasInvitation ? null : _organizationController.text.trim(),
         );
 
     if (result['success'] && mounted) {
@@ -126,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case LoginStep.otp:
         return 'Enter the code sent to your email';
       case LoginStep.register:
-        return 'Create your account';
+        return _hasInvitation ? 'Complete your registration' : 'Create your account';
     }
   }
 
@@ -137,7 +141,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case LoginStep.otp:
         return _isNewUser ? 'Continue' : 'Verify Code';
       case LoginStep.register:
-        return 'Create Account';
+        return _hasInvitation ? 'Join Team' : 'Create Account';
     }
   }
 
@@ -258,51 +262,92 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     // Register Step
                     if (_currentStep == LoginStep.register) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 16),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber),
+                      if (_hasInvitation)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.green.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.celebration_outlined,
+                                    color: Colors.green,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    "You've been invited!",
+                                    style: Theme.of(context).textTheme.titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green[900],
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'You\'ll be joining ${_pendingInvitation!['organizationName']} as a ${_pendingInvitation!['role']}.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: Colors.green[900]),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.amber),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.info_outline,
+                                    color: Colors.amber,
+                                    size: 20,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'New account detected',
+                                    style: Theme.of(context).textTheme.titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.amber[900],
+                                        ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'This will create a new organization. If you were invited, please use the invitation link instead.',
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: Colors.amber[900]),
+                              ),
+                            ],
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: Colors.amber,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'New account detected',
-                                  style: Theme.of(context).textTheme.titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.amber[900],
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'This will create a new organization.',
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: Colors.amber[900]),
-                            ),
-                          ],
-                        ),
-                      ),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(
                           labelText: 'Your Name',
                           prefixIcon: Icon(Icons.person_outline),
                         ),
-                        textInputAction: TextInputAction.next,
+                        textInputAction: _hasInvitation ? TextInputAction.done : TextInputAction.next,
+                        onFieldSubmitted: _hasInvitation ? (_) => _register() : null,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter your name';
@@ -310,23 +355,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _organizationController,
-                        decoration: const InputDecoration(
-                          labelText: 'Organization Name',
-                          prefixIcon: Icon(Icons.business_outlined),
-                          helperText: 'You can change this later in settings',
+                      if (!_hasInvitation) ...[
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _organizationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Organization Name',
+                            prefixIcon: Icon(Icons.business_outlined),
+                            helperText: 'You can change this later in settings',
+                          ),
+                          textInputAction: TextInputAction.done,
+                          onFieldSubmitted: (_) => _register(),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter organization name';
+                            }
+                            return null;
+                          },
                         ),
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _register(),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Please enter organization name';
-                          }
-                          return null;
-                        },
-                      ),
+                      ],
                     ],
 
                     if (authState.error != null) ...[
@@ -403,6 +450,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     _otpController.clear();
                                     _nameController.clear();
                                     _organizationController.clear();
+                                    _pendingInvitation = null;
                                   }
                                 });
                               },

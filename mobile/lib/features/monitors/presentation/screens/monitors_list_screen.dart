@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/services/server_config_service.dart';
 import '../providers/monitors_provider.dart';
 import '../widgets/monitor_card.dart';
 
@@ -99,6 +101,18 @@ class MonitorsListScreen extends ConsumerWidget {
                               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: Colors.grey[500],
                               ),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                final serverUrl = await ServerConfigService.instance.getServerUrl();
+                                if (serverUrl != null) {
+                                  final uri = Uri.parse(serverUrl);
+                                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                }
+                              },
+                              icon: const Icon(Icons.open_in_new),
+                              label: const Text('Open Web Dashboard'),
                             ),
                           ],
                         ),

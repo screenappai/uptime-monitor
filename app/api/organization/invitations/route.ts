@@ -116,7 +116,7 @@ export async function POST(request: NextRequest) {
       role,
       invitedBy: user!.id,
       token,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
     })
 
     // Get inviter info (organization already fetched above for limit check)

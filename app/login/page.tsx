@@ -21,8 +21,11 @@ function LoginForm() {
   const [name, setName] = useState('')
   const [organizationName, setOrganizationName] = useState('')
   const [isNewUser, setIsNewUser] = useState(false)
+  const [pendingInvitation, setPendingInvitation] = useState<{ organizationName: string; role: string } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  const hasInvitation = !!inviteToken || !!pendingInvitation
 
   const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,6 +47,9 @@ function LoginForm() {
       }
 
       setIsNewUser(data.isNewUser)
+      if (data.pendingInvitation) {
+        setPendingInvitation(data.pendingInvitation)
+      }
       setStep('otp')
     } catch (err) {
       setError('An error occurred. Please try again.')
@@ -91,12 +97,12 @@ function LoginForm() {
 
     try {
       // Sign in with NextAuth, passing registration data
-      // NextAuth authorize will create user and org if needed
+      // NextAuth authorize will auto-detect pending invitations
       const result = await signIn('otp', {
         email,
         code: otp,
         name,
-        organizationName: inviteToken ? '' : organizationName,
+        organizationName: hasInvitation ? '' : organizationName,
         inviteToken: inviteToken || '',
         redirect: false,
       })
@@ -121,7 +127,7 @@ function LoginForm() {
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
             {step === 'email' && 'Enter your email to sign in'}
             {step === 'otp' && 'Enter the code sent to your email'}
-            {step === 'register' && (inviteToken ? 'Complete your registration' : 'Create your account')}
+            {step === 'register' && (hasInvitation ? 'Complete your registration' : 'Create your account')}
           </p>
         </CardHeader>
         <CardContent>
@@ -197,7 +203,16 @@ function LoginForm() {
 
           {step === 'register' && (
             <form onSubmit={handleRegister} className="space-y-4">
-              {!inviteToken && (
+              {pendingInvitation && (
+                <div className="p-3 text-sm bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded-md border border-green-200 dark:border-green-800">
+                  <p className="font-medium">You&apos;ve been invited!</p>
+                  <p className="mt-1 text-xs">
+                    You&apos;ll be joining <strong>{pendingInvitation.organizationName}</strong> as a {pendingInvitation.role}.
+                  </p>
+                </div>
+              )}
+
+              {!hasInvitation && (
                 <div className="p-3 text-sm bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 rounded-md border border-amber-200 dark:border-amber-800">
                   <p className="font-medium">New account detected</p>
                   <p className="mt-1 text-xs">
@@ -220,7 +235,7 @@ function LoginForm() {
                 />
               </div>
 
-              {!inviteToken && (
+              {!hasInvitation && (
                 <div>
                   <label className="block text-sm font-medium mb-2 dark:text-white">
                     Organization Name
@@ -239,7 +254,7 @@ function LoginForm() {
               )}
 
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Creating account...' : 'Create Account'}
+                {loading ? 'Creating account...' : hasInvitation ? 'Join Team' : 'Create Account'}
               </Button>
 
               <Button
@@ -251,6 +266,7 @@ function LoginForm() {
                   setOtp('')
                   setName('')
                   setOrganizationName('')
+                  setPendingInvitation(null)
                   setError('')
                 }}
               >

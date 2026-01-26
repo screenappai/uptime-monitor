@@ -44,6 +44,8 @@ class AuthRepository {
           'success': true,
           'isNewUser': response.data['isNewUser'] ?? false,
           'message': response.data['message'] ?? 'OTP sent successfully',
+          if (response.data['pendingInvitation'] != null)
+            'pendingInvitation': response.data['pendingInvitation'],
         };
       }
 

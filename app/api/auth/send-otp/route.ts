@@ -47,33 +47,42 @@ export async function POST(request: NextRequest) {
     // Check if user exists
     const existingUser = await UserModel.findOne({ email: normalizedEmail })
 
-    // In single-tenant mode, check if user has invitation or if they can create first org
+    // For new users, check for pending invitations
+    let pendingInvitation = null
     if (!existingUser) {
-      const isMultiTenant = process.env.MULTI_TENANT === 'true'
-      
-      if (!isMultiTenant) {
-        // Check if any organization exists
-        const OrganizationModel = (await import('@/models/Organization')).default
-        const orgCount = await OrganizationModel.countDocuments()
-        
-        if (orgCount > 0) {
-          // Organization exists, check for pending invitation
-          const InvitationModel = (await import('@/models/Invitation')).default
-          const invitation = await InvitationModel.findOne({
-            email: normalizedEmail,
-            expiresAt: { $gt: new Date() },
-            acceptedAt: null,
-          })
-          
-          if (!invitation) {
+      const InvitationModel = (await import('@/models/Invitation')).default
+      const OrganizationModel = (await import('@/models/Organization')).default
+
+      pendingInvitation = await InvitationModel.findOne({
+        email: normalizedEmail,
+        expiresAt: { $gt: new Date() },
+        acceptedAt: null,
+      })
+
+      // In single-tenant mode, block users without invitations
+      if (!pendingInvitation) {
+        const isMultiTenant = process.env.MULTI_TENANT === 'true'
+
+        if (!isMultiTenant) {
+          const orgCount = await OrganizationModel.countDocuments()
+
+          if (orgCount > 0) {
             return NextResponse.json(
-              { 
-                success: false, 
-                error: 'You are not invited. Please contact your administrator for an invitation.' 
+              {
+                success: false,
+                error: 'You are not invited. Please contact your administrator for an invitation.'
               },
               { status: 403 }
             )
           }
+        }
+      }
+
+      // Get organization name for the invitation
+      if (pendingInvitation) {
+        const org = await OrganizationModel.findById(pendingInvitation.organizationId)
+        if (org) {
+          pendingInvitation = { ...pendingInvitation.toObject(), organizationName: org.name }
         }
       }
     }
@@ -85,6 +94,12 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'OTP sent successfully',
       isNewUser: !existingUser,
+      ...(pendingInvitation && {
+        pendingInvitation: {
+          organizationName: pendingInvitation.organizationName,
+          role: pendingInvitation.role,
+        },
+      }),
     })
   } catch (error) {
     if (error instanceof z.ZodError) {

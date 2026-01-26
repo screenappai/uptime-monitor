@@ -123,23 +123,39 @@ export const authOptions: NextAuthOptions = {
               return null
             }
           } else {
-            // Create new organization
-            const orgName = credentials.organizationName?.trim()
-            if (!orgName) {
-              // Need organization name for new user without invite
-              return null
+            // Check for any pending invitation for this email
+            const pendingInvitation = await InvitationModel.findOne({
+              email: normalizedEmail,
+              expiresAt: { $gt: new Date() },
+              acceptedAt: null,
+            })
+
+            if (pendingInvitation) {
+              // Auto-accept the pending invitation
+              organizationId = pendingInvitation.organizationId.toString()
+              role = pendingInvitation.role
+              await InvitationModel.findByIdAndUpdate(pendingInvitation._id, {
+                acceptedAt: new Date(),
+              })
+            } else {
+              // Create new organization
+              const orgName = credentials.organizationName?.trim()
+              if (!orgName) {
+                // Need organization name for new user without invite
+                return null
+              }
+
+              const slug = await generateUniqueSlug(orgName, async (s) => {
+                const existing = await OrganizationModel.findOne({ slug: s })
+                return !!existing
+              })
+
+              const organization = await OrganizationModel.create({
+                name: orgName,
+                slug,
+              })
+              organizationId = organization._id.toString()
             }
-
-            const slug = await generateUniqueSlug(orgName, async (s) => {
-              const existing = await OrganizationModel.findOne({ slug: s })
-              return !!existing
-            })
-
-            const organization = await OrganizationModel.create({
-              name: orgName,
-              slug,
-            })
-            organizationId = organization._id.toString()
           }
 
           // Create user

@@ -101,47 +101,63 @@ export async function POST(request: NextRequest) {
           )
         }
       } else {
-        // Check multi-tenant setting
-        const isMultiTenant = process.env.MULTI_TENANT === 'true'
-        const orgCount = await OrganizationModel.countDocuments()
+        // Check for any pending invitation for this email
+        const pendingInvitation = await InvitationModel.findOne({
+          email: normalizedEmail,
+          expiresAt: { $gt: new Date() },
+          acceptedAt: null,
+        })
 
-        if (!isMultiTenant && orgCount > 0) {
-          // Single-tenant mode: Organization already exists, user needs invitation
-          return NextResponse.json(
-            { 
-              success: false, 
-              error: 'You are not invited. Please contact your administrator for an invitation.' 
+        if (pendingInvitation) {
+          // Auto-accept the pending invitation
+          organizationId = pendingInvitation.organizationId.toString()
+          role = pendingInvitation.role
+          await InvitationModel.findByIdAndUpdate(pendingInvitation._id, {
+            acceptedAt: new Date(),
+          })
+        } else {
+          // Check multi-tenant setting
+          const isMultiTenant = process.env.MULTI_TENANT === 'true'
+          const orgCount = await OrganizationModel.countDocuments()
+
+          if (!isMultiTenant && orgCount > 0) {
+            // Single-tenant mode: Organization already exists, user needs invitation
+            return NextResponse.json(
+              {
+                success: false,
+                error: 'You are not invited. Please contact your administrator for an invitation.'
+              },
+              { status: 403 }
+            )
+          }
+
+          // Create new organization (first user or multi-tenant mode)
+          if (!organizationName) {
+            return NextResponse.json(
+              { success: false, error: 'Organization name required', requiresOrganization: true },
+              { status: 400 }
+            )
+          }
+
+          const slug = await generateUniqueSlug(organizationName, async (s) => {
+            const existing = await OrganizationModel.findOne({ slug: s })
+            return !!existing
+          })
+
+          const isFirstOrganization = orgCount === 0
+
+          const organization = await OrganizationModel.create({
+            name: organizationName,
+            slug,
+            settings: {
+              maxMonitors: isFirstOrganization || !isMultiTenant ? 100 : 5,
+              maxContactLists: isFirstOrganization || !isMultiTenant ? 20 : 3,
+              maxMembers: isFirstOrganization || !isMultiTenant ? 50 : 1,
+              checkInterval: isFirstOrganization || !isMultiTenant ? 30 : 60,
             },
-            { status: 403 }
-          )
+          })
+          organizationId = organization._id.toString()
         }
-
-        // Create new organization (first user or multi-tenant mode)
-        if (!organizationName) {
-          return NextResponse.json(
-            { success: false, error: 'Organization name required', requiresOrganization: true },
-            { status: 400 }
-          )
-        }
-
-        const slug = await generateUniqueSlug(organizationName, async (s) => {
-          const existing = await OrganizationModel.findOne({ slug: s })
-          return !!existing
-        })
-
-        const isFirstOrganization = orgCount === 0
-
-        const organization = await OrganizationModel.create({
-          name: organizationName,
-          slug,
-          settings: {
-            maxMonitors: isFirstOrganization || !isMultiTenant ? 100 : 5,
-            maxContactLists: isFirstOrganization || !isMultiTenant ? 20 : 3,
-            maxMembers: isFirstOrganization || !isMultiTenant ? 50 : 1,
-            checkInterval: isFirstOrganization || !isMultiTenant ? 30 : 60,
-          },
-        })
-        organizationId = organization._id.toString()
       }
 
       // Create user

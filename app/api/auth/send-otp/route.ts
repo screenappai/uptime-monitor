@@ -48,12 +48,12 @@ export async function POST(request: NextRequest) {
     const existingUser = await UserModel.findOne({ email: normalizedEmail })
 
     // For new users, check for pending invitations
-    let pendingInvitation = null
+    let invitationInfo: { organizationName: string; role: string } | null = null
     if (!existingUser) {
       const InvitationModel = (await import('@/models/Invitation')).default
       const OrganizationModel = (await import('@/models/Organization')).default
 
-      pendingInvitation = await InvitationModel.findOne({
+      const pendingInvitation = await InvitationModel.findOne({
         email: normalizedEmail,
         expiresAt: { $gt: new Date() },
         acceptedAt: null,
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       if (pendingInvitation) {
         const org = await OrganizationModel.findById(pendingInvitation.organizationId)
         if (org) {
-          pendingInvitation = { ...pendingInvitation.toObject(), organizationName: org.name }
+          invitationInfo = { organizationName: org.name, role: pendingInvitation.role }
         }
       }
     }
@@ -94,11 +94,8 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'OTP sent successfully',
       isNewUser: !existingUser,
-      ...(pendingInvitation && {
-        pendingInvitation: {
-          organizationName: pendingInvitation.organizationName,
-          role: pendingInvitation.role,
-        },
+      ...(invitationInfo && {
+        pendingInvitation: invitationInfo,
       }),
     })
   } catch (error) {

@@ -1,6 +1,6 @@
 {
   "name": "uptime-monitor",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Open-source uptime monitoring system built with Next.js",
   "private": false,
   "scripts": {

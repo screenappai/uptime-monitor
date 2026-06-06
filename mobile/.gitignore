@@ -66,3 +66,4 @@ upload-keystore.jks
 koala.json
 scripts/flutter-koala.ps1
 scripts/flutter-koala.sh
+ios/Flutter/BrandConfig.xcconfig

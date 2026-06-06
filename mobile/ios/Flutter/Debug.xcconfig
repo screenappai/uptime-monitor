@@ -5,3 +5,7 @@
 // APP_DISPLAY_NAME (e.g. to "Uptime Koala") via xcconfig or an xcodebuild
 // build-setting argument.
 APP_DISPLAY_NAME=Uptime Monitor
+
+// Optional private brand overrides (git-ignored). When present, this file's
+// APP_DISPLAY_NAME wins over the OSS default above. Absent in OSS builds.
+#include? "BrandConfig.xcconfig"

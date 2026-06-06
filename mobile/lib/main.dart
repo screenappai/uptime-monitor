@@ -10,12 +10,17 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  // Initialize FCM
-  await FCMService.instance.initialize();
-
+  // Start the app immediately. FCM initialization must NOT block startup:
+  // some messaging calls (e.g. getInitialMessage / setForegroundNotification
+  // PresentationOptions) wait on an APNS token that may never arrive on the
+  // iOS simulator, which would otherwise leave a blank white screen.
   runApp(
     const ProviderScope(
       child: UptimeMonitorApp(),
     ),
   );
+
+  // Initialize FCM in the background; failures here should never crash or
+  // block the UI.
+  FCMService.instance.initialize();
 }

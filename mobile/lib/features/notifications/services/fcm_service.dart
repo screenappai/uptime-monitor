@@ -28,38 +28,51 @@ class FCMService {
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   Future<void> initialize() async {
-    // Request permissions
-    await _requestPermissions();
+    try {
+      // Request permissions
+      await _requestPermissions();
 
-    // Enable foreground notifications on iOS
-    await _messaging.setForegroundNotificationPresentationOptions(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+      // Initialize local notifications
+      await _initializeLocalNotifications();
 
-    // Initialize local notifications
-    await _initializeLocalNotifications();
+      // Set up background message handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    // Set up background message handler
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      // Handle foreground messages
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // Handle foreground messages
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // Handle notification tap when app was in background
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-    // Handle notification tap when app was in background
-    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+      // Listen for token refresh
+      _messaging.onTokenRefresh.listen((token) {
+        _saveAndRegisterToken(token);
+      });
 
-    // Check if app was opened from a notification
-    final initialMessage = await _messaging.getInitialMessage();
-    if (initialMessage != null) {
-      _handleNotificationTap(initialMessage);
+      // The calls below depend on an APNS token, which may never arrive on the
+      // iOS simulator and can hang indefinitely. Guard them so they can never
+      // block initialization (and, by extension, the rest of the app).
+      await _messaging
+          .setForegroundNotificationPresentationOptions(
+            alert: true,
+            badge: true,
+            sound: true,
+          )
+          .timeout(const Duration(seconds: 5))
+          .catchError((Object e) {
+        logger.w('FCM: setForegroundNotificationPresentationOptions failed: $e');
+      });
+
+      // Check if app was opened from a notification
+      final initialMessage = await _messaging
+          .getInitialMessage()
+          .timeout(const Duration(seconds: 5), onTimeout: () => null);
+      if (initialMessage != null) {
+        _handleNotificationTap(initialMessage);
+      }
+    } catch (e) {
+      logger.e('FCM: initialization failed', error: e);
     }
-
-    // Listen for token refresh
-    _messaging.onTokenRefresh.listen((token) {
-      _saveAndRegisterToken(token);
-    });
   }
 
   Future<void> _requestPermissions() async {
